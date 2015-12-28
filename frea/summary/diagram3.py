@@ -8,8 +8,9 @@ import sys
 
 import scipy.stats
 
-from .join import *
+from .join import lookup
 from .process import chromosome
+from ..formats import output_impg_zscores
 
 _isf = scipy.stats.chi2(1).isf
 _z = lambda x: math.sqrt(_isf(x))

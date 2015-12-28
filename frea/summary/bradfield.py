@@ -9,24 +9,7 @@ import sys
 
 import scipy.stats
 
-def join(seq1, seq2, key1, key2=None):
-    if key2 is None:
-        key2 = key1
-    seq1_buckets = itertools.groupby(seq1, key1)
-    seq2_buckets = itertools.groupby(seq2, key2)
-    k1, g1 = next(seq1_buckets)
-    k2, g2 = next(seq2_buckets)
-    n = 0
-    while True:
-        if k1 == k2:
-            for pair in itertools.product(g1, g2):
-                yield pair
-            k1, g1 = next(seq1_buckets)
-            k2, g2 = next(seq2_buckets)
-        elif k1 < k2:
-            k1, g1 = next(seq1_buckets)
-        else:
-            k2, g2 = next(seq2_buckets)
+from ..algorithms import join
 
 def bradfield(file):
     types = [str, int, int, float]

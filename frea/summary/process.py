@@ -3,7 +3,7 @@ import operator
 
 import scipy.stats
 
-from .join import *
+from .lookup import *
 
 def process_sim():
     """Process plink linear regression output"""
@@ -26,7 +26,7 @@ def fix_names():
     data = (line.split('\t') for line in sys.stdin)
     parsed = parse(ucsc_bed_format, data)
     for k, g in itertools.groupby(parsed, key=operator.itemgetter(0)):
-        lookup(g, output_fn=output_ucsc_bed)
+        lookup(g)
 
 _isf = scipy.stats.chi2(1).isf
 
