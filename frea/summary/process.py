@@ -1,4 +1,5 @@
 import math
+import operator
 
 import scipy.stats
 
@@ -19,6 +20,13 @@ def ucsc_to_impg():
             print('id', 'pos', 'ref', 'alt', 'z', file=f)
             output_ = functools.partial(output, output_fn=output_impg_zscores, score_fn=float, file=f)
             lookup(g, output_fn=output_)
+
+def fix_names():
+    """Fix the names of a BED file"""
+    data = (line.split('\t') for line in sys.stdin)
+    parsed = parse(ucsc_bed_format, data)
+    for k, g in itertools.groupby(parsed, key=operator.itemgetter(0)):
+        lookup(g, output_fn=output_ucsc_bed)
 
 _isf = scipy.stats.chi2(1).isf
 
