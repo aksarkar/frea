@@ -1,3 +1,4 @@
+import glob
 import setuptools
 
 setuptools.setup(name='frea',
@@ -8,6 +9,7 @@ setuptools.setup(name='frea',
                  author_email='aksarkar@mit.edu',
                  url='http://web.mit.edu/aksarkar/',
                  packages=setuptools.find_packages(),
+                 scripts=glob.glob('bin/*'),
                  entry_points={
                      'console_scripts': ['ucsc_to_impg=frea.summary.process:ucsc_to_impg',
                                          'diagram=frea.summary.process:diagram',

@@ -1,0 +1,37 @@
+#+TITLE: Functional Region Enrichment Analysis
+#+DATE:
+#+AUTHOR: Abhishek Sarkar
+#+EMAIL: aksarkar@mit.edu
+#+OPTIONS: ':nil *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline author:t c:nil
+#+OPTIONS: creator:comment d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t
+#+OPTIONS: num:t p:nil pri:nil stat:t tags:t tasks:t tex:t timestamp:t toc:t
+#+OPTIONS: todo:t |:t
+#+CREATOR: Emacs 24.5.1 (Org mode 8.2.10)
+#+DESCRIPTION:
+#+EXCLUDE_TAGS: noexport
+#+KEYWORDS:
+#+LANGUAGE: en
+#+SELECT_TAGS: export
+
+This repository provides Python and R packages implementing the analyses
+presented in:
+
+Sarkar, Ward, Kellis. "Functional enrichments of disease variants indicate
+hundreds of independent loci"
+
+Importantly, this repository /does not/ contain the scripts used to run the
+analyses on a computing cluster.
+
+* Installation
+
+The Python package requires Python > 3.2
+
+#+BEGIN_SRC sh
+pip install .
+#+END_SRC
+
+To install the R package
+
+#+BEGIN_SRC sh
+install.packages(".", repos=NULL)
+#+END_SRC
