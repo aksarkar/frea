@@ -9,6 +9,29 @@ impg_format = [str, int, str, str, float, float]
 legend_format = [str, int, str, str, str]
 plink_format = [lambda x: 'chr{}'.format(x), str, int, int, str, str]
 
+def get_pouyak_name(chr_, name, pos, a0, a1):
+    if len(a0) <= len(a1):
+        start = pos
+        end = pos
+        if len(a0) == len(a1):
+            delta = a1
+        else:  # insertion
+            delta = a1[len(a0):]
+    else:  # deletion
+        start = pos + len(a1)
+        end = pos + len(a0) - len(a1)
+        delta = ""
+    return '|'.join([name, chr_, str(end), str(end), delta])
+
+def get_plink_alleles(a0, a1):
+    if len(a0) > 1:
+        a0 = 'I{}'.format(len(a0))
+        a1 = 'D'
+    elif len(a1) > 1:
+        a0 = 'D'
+        a1 = 'I{}'.format(len(a1))
+    return a0, a1
+
 def parse(types, iterable):
     for row in iterable:
         yield [f(x) for f, x in zip(types, row)]
@@ -19,3 +42,5 @@ def output_ucsc_bed(chr_, score, name, pos, a0, a1):
 def output_impg_zscores(chr_, score, name, pos, a0, a1):
     return ' '.join([name, str(pos), a0, a1, str(score)])
 
+def output_plink_bim(chr_, score, name, pos, a0, a1):
+    return '\t'.join([chr_, get_pouyak_name(chr_, name, pos, a0, a1), "0", str(pos), a0, a1])

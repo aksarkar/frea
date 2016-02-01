@@ -21,12 +21,22 @@ def ucsc_to_impg():
             output_ = functools.partial(output, output_fn=output_impg_zscores, score_fn=float, file=f)
             lookup(g, output_fn=output_)
 
-def fix_names():
-    """Fix the names of a BED file"""
+def _fix_names(fmt, output_fn, **kwargs):
     data = (line.split('\t') for line in sys.stdin)
-    parsed = parse(ucsc_bed_format, data)
+    parsed = parse(fmt, data)
     for k, g in itertools.groupby(parsed, key=operator.itemgetter(0)):
-        lookup(g)
+        lookup(g, output_fn, **kwargs)
+
+def fix_uscs_bed_names():
+    """Fix the names of a BED file"""
+    _fix_names(ucsc_bed_format, output_ucsc_bed)
+
+def fix_plink_bim_names():
+    def output(bim, ref):
+        chr_, affy_name = bim[:2]
+        name, pos, a0, a1, _ = ref
+        print(affy_name, get_pouyak_name(chr_, name, pos, a0, a1))
+    _fix_names(plink_format, output, input_join_key=operator.itemgetter(3))
 
 _isf = scipy.stats.chi2(1).isf
 

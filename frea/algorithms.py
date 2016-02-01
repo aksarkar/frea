@@ -69,3 +69,20 @@ def moments(xs):
         running_mean = new_mean
     running_variance /= ntrials
     return running_mean, running_variance
+
+def benjamini_hochberg(data, key=operator.itemgetter(0), fdr=.05, n_tests=None):
+    """Returns a generator which yields rows of data filtered by p-value to achieve
+target FDR.
+
+    This method implements the Benjamini-Hochberg stepwise procedure.
+
+    """
+    if n_tests is None:
+        n_tests = len(data)
+    threshold = None
+    for i, row in enumerate(data):
+        p = key(row)
+        if threshold is None and p > fdr * (i + 1) / n_tests:
+            threshold = p
+        if threshold is None or p < threshold:
+            yield row

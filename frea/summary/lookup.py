@@ -14,29 +14,6 @@ import sys
 from ..algorithms import join
 from ..formats import *
 
-def get_pouyak_name(chr_, name, pos, a0, a1):
-    if len(a0) <= len(a1):
-        start = pos
-        end = pos
-        if len(a0) == len(a1):
-            delta = a1
-        else:  # insertion
-            delta = a1[len(a0):]
-    else:  # deletion
-        start = pos + len(a1)
-        end = pos + len(a0) - len(a1)
-        delta = ""
-    return '|'.join([name, chr_, str(end), str(end), delta])
-
-def get_plink_alleles(a0, a1):
-    if len(a0) > 1:
-        a0 = 'I{}'.format(len(a0))
-        a1 = 'D'
-    elif len(a1) > 1:
-        a0 = 'D'
-        a1 = 'I{}'.format(len(a1))
-    return a0, a1
-
 def is_alignable(a0, a1, b0, b1):
     return (b0, b1) == (a0, a1) or (b1, b0) == (a0, a1)
 
