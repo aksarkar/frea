@@ -25,8 +25,10 @@ def output(bed_entry, ref_entry, key=operator.itemgetter(0, -1), output_fn=outpu
     name, pos, a0, a1, _ = ref_entry
     print(output_fn(chr_, score_fn(score), name, pos, a0, a1), file=file)
 
-def lookup(parsed_input, output_fn, input_sort_key=operator.itemgetter(0),
-           input_join_key=operator.itemgetter(1), ref_join_key=operator.itemgetter(1)):
+def lookup(parsed_input, output_fn=output,
+           input_sort_key=operator.itemgetter(0),
+           input_join_key=operator.itemgetter(1),
+           ref_join_key=operator.itemgetter(1)):
     """Lookup input SNPs in 1KG
 
     parsed_input - iterable of parsed entries

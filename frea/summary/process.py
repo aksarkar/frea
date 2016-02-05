@@ -4,6 +4,7 @@ import operator
 import scipy.stats
 
 from .lookup import *
+from ..formats import *
 
 def process_sim():
     """Process plink linear regression output"""
@@ -38,33 +39,7 @@ def fix_plink_bim_names():
         print(affy_name, get_pouyak_name(chr_, name, pos, a0, a1))
     _fix_names(plink_format, output, input_join_key=operator.itemgetter(3))
 
-_isf = scipy.stats.chi2(1).isf
-
-def zscore(p, odds):
-    z = math.sqrt(_isf(float(p)))
-    if float(odds) < 1:
-        z *= -1
-    return z
-
-def logp(p):
-    return -math.log10(float(p))
-
-def summary_stats(filename, input_key, skip_header=True):
-    """Parse summary statistics
-
-    input_key - function that returns (chromosome, position, id, z)
-    """
-    with gzip.open(filename, 'rt') as f:
-        if skip_header:
-            next(f)
-        data = (line.split() for line in f)
-        for row in data:
-            yield input_key(row)
-
-def chromosome(n):
-    return 'chr{}'.format(n)
-
-def _helper(filename, key):
+def _reformat(filename, key):
     for row in summary_stats(filename, key):
         print(row[0], row[1], row[1] + 1, row[2], row[3], sep='\t')
 
@@ -78,23 +53,24 @@ def cardiogram():
     def key(row):
         chromosome, pos = row[1].split(':')
         return chromosome, int(pos), row[0], zscore(float(row[5]), math.exp(float(row[7])))
-    _helper('/broad/compbio/aksarkar/data/gwas-summary-stats/cardiogram/cardiogram_gwas_results/CARDIoGRAM_GWAS_RESULTS.txt.gz',
+    _reformat('/broad/compbio/aksarkar/data/gwas-summary-stats/cardiogram/cardiogram_gwas_results/CARDIoGRAM_GWAS_RESULTS.txt.gz',
             key)
 
 def ra():
-    _helper('/broad/compbio/aksarkar/data/gwas-summary-stats/ra/ra.txt.gz',
+    _reformat('/broad/compbio/aksarkar/data/gwas-summary-stats/ra/ra.txt.gz',
             lambda x: (chromosome(x[0]), int(x[2]), x[1], x[-4]))
 
 def iibdgc():
-    key = lambda x: (chromosome(x[0]), int(x[2]), float(x[10]))
-    def parse(iterable):
-        for row in iterable:
-            yield key(row)
-    with gzip.open('/broad/compbio/aksarkar/data/gwas-summary-stats/iibdgc/iibdgc-trans-ancestry-summary-stats/EUR.CD.gwas.assoc.gz', 'rt') as f:
-        next(f)
-        data = (line.split() for line in f)
-        lookup(sorted(parse(data), key=operator.itemgetter(0, 1)), output_fn=output)
+    _lookup('/broad/compbio/aksarkar/data/gwas-summary-stats/iibdgc/iibdgc-trans-ancestry-summary-stats/EUR.CD.gwas.assoc.gz',
+            lambda x: (chromosome(x[0]), int(x[2]), float(x[10])),
+            operator.itemgetter(0, 1))
 
-def pgc():
-    _helper('/broad/compbio/aksarkar/data/gwas-summary-stats/pgc/pgc.bip.2012-04/pgc.bip.full.2012-04.txt.gz',
+def bip():
+    _reformat('/broad/compbio/aksarkar/data/gwas-summary-stats/pgc/pgc.bip.2012-04/pgc.bip.full.2012-04.txt.gz',
             lambda x: (chromosome(x[1]), int(x[2]), x[0], zscore(float(x[7]), float(x[5]))))
+
+def scz():
+    def key(row):
+        return row[0], int(row[4]), float(row[8])
+    lookup(sorted(summary_stats('/broad/compbio/aksarkar/data/gwas-summary-stats/pgc/pgc.szc2.txt.gz', key),
+                  key=operator.itemgetter(0, 1)))
