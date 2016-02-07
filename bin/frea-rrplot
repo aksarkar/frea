@@ -1,0 +1,86 @@
+#!/bin/bash
+# Bin binary annotations for RR plots
+# Usage: bin.sh MARKERS FEATURES
+# Options:
+#   -c, --cumulative Compute cumulative statistic
+#   -i, --intersect  Bin over intersection of regions and genome
+#   -r, --sort       Sort features before intersecting
+#   -s, --subtract   Bin over genome minus regions
+
+# Author: Abhishek Sarkar <aksarkar@mit.edu>
+set -e
+eval set -- $(getopt -o "ci:l:s:t:r" -l "cumulative,intersect:ld-correction:subtract:sort" -n $0 -- $@)
+while [[ $1 != "--" ]]
+do
+    case $1 in
+        -c|--cumulative)
+            cumulative=1
+            shift
+            ;;
+        -i|--intersect)
+            dointersect=1
+            shift
+            imask=$1
+            shift
+            ;;
+        -l|--ld-correction)
+            shift
+            op=$1
+            shift
+            ;;
+        -r|--sort)
+            dosort=1
+            shift
+            ;;
+        -s|--subtract)
+            dosubtract=1
+            mod="-"
+            shift
+            mask=$1
+            shift
+            ;;
+        -t|--thresh)
+            shift
+            union="1"
+            shift
+            ;;
+    esac
+done
+shift
+markers=${1?"$0: missing markers"}
+features=${2?"$0: missing features"}
+binsize=${3-1000}
+phenotype=$(basename $markers | sed -r "s/.bed.*//")
+f=$(echo $features | sed "s#.*features##" | cut -d/ -f2)${op+-$op}${mask+$mod$(basename $mask | sed "s/.[^.]*.gz//")}
+c=$(echo $features | sed "s#.*features##" | cut -d/ -f3- | \
+    sed -r "s/.bed.*//")
+{
+    if [[ ! -z $dosort ]]
+    then
+        bedtools sort -i $features
+    else
+        zcat $features
+    fi
+} | \
+    bedtools intersect -sorted -nobuf -c -wa -a $1 -b stdin | \
+    {
+        if [[ ! -z $dointersect ]]
+        then
+            bedtools intersect -sorted -nobuf -wa -a stdin -b $imask
+        else
+            cat
+        fi
+    } | \
+{
+    if [[ ! -z $dosubtract ]]
+    then
+        bedtools intersect -sorted -nobuf -wa -v -a stdin -b $mask
+    else
+        cat
+    fi
+} | \
+    sort -k4 | \
+    python -m frea.ld.weight
+    sort -k1gr | \
+    cut -f2 | \
+    python -m frea.rrplot $phenotype $f $c $binsize $cumulative
