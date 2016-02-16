@@ -13,3 +13,16 @@ Depends:
     reshape,
     scales,
     Cairo
+License: BSD
+LazyData: true
+Collate:
+    'data.R'
+    'directlabels.R'
+    'theme_nature.R'
+    'scales.R'
+    'heatmap.R'
+    'pve_plot.R'
+    'qqplot.R'
+    'rrplot-summarize.R'
+    'rrplot.R'
+    'ticks.R'
