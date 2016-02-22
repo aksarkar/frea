@@ -17,6 +17,7 @@ Collate:
     'directlabels.R'
     'theme_nature.R'
     'scales.R'
+    'enrichment.R'
     'heatmap.R'
     'pve_plot.R'
     'qqplot.R'

@@ -60,20 +60,6 @@ density_by_cluster <- function(cluster_density, keep=NULL) {
      theme(axis.text=element_blank()))
 }
 
-enrichment_by_cluster <- function(enrichments, cluster_density) {
-    enrichments$V2 <- factor(enrichments$V2, levels=row.names(cluster_density))
-    enrichment_by_cluster_panel <-
-        (heatmap(ggplot(enrichments, aes(x=V1, y=V2, fill=V3))) +
-         scale_heatmap() +
-         scale_x_discrete(name='Phenotype') +
-         scale_y_discrete(name='Enhancer module') +
-         coord_fixed() +
-         theme(axis.text.x=element_blank()))
-    density_by_cluster_panel <- density_by_cluster(cluster_density, enrichments$V2) + coord_flip()
-    grobs <- lapply(list(density_by_cluster_panel, enrichment_by_cluster_panel), ggplotGrob)
-    do.call(cbind, c(grobs, size='last'))
-}
-
 master_regulator_by_cofactor <- function(cofactors) {
     cofactors$V3 <- droplevels(cofactors$V3)
     cofactors$V4 <- droplevels(cofactors$V4)
@@ -102,13 +88,6 @@ master_regulator_by_phenotype <- function(enrichments) {
      theme(axis.text.x=element_text(angle=90, vjust=0.5, hjust=1)))
 }
 
-preview <- function() {
-    data(honeybadger2_impute_p2_cluster_density)
-    enrichments <- read.delim('/broad/compbio/aksarkar/projects/gwas/wtccc1/EC21/results/matched/hb2-imputed-features/sig', header=F, sep=' ')
-    CairoPDF(file='/broad/hptmp/aksarkar/test.pdf', width=11, height=8.5)
-    grid.draw(enrichment_by_cluster(enrichments, honeybadger2_impute_p2_cluster_density))
-    dev.off()
-}
 plot_motif_enrichments <- function(filename) {
     data(honeybadger_cluster_density)
     enrichments <- read.delim(gzfile(filename), header=FALSE, sep=' ')

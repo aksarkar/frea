@@ -84,5 +84,5 @@ target FDR.
         p = key(row)
         if threshold is None and p > fdr * (i + 1) / n_tests:
             threshold = p
-        if threshold is None or p < threshold:
+        if threshold is None or p <= threshold:
             yield row
