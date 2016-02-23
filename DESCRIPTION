@@ -19,7 +19,6 @@ Collate:
     'scales.R'
     'enrichment.R'
     'heatmap.R'
-    'pve_plot.R'
     'qqplot.R'
     'rrplot-summarize.R'
     'rrplot.R'
