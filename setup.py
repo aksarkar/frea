@@ -2,7 +2,7 @@ import glob
 import setuptools
 
 setuptools.setup(name='frea',
-                 version='0.2',
+                 version='0.3',
                  description='Functional Region Enrichment Analysis',
                  long_description='Tools for interpreting GWAS using regulatory annotations',
                  author='Abhishek Sarkar',
@@ -14,6 +14,7 @@ setuptools.setup(name='frea',
                      'console_scripts': ['ucsc_to_impg=frea.summary.process:ucsc_to_impg',
                                          'diagram=frea.summary.process:diagram',
                                          'cardiogram=frea.summary.process:cardiogram',
-                                         'iibdgc=frea.summary.process:iibdgc']
+                                         'iibdgc=frea.summary.process:iibdgc',
+                                         'frea-build-table=frea.matched:build_table']
                  }
                  )

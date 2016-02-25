@@ -4,6 +4,8 @@ Author: Abhishek Sarkar <aksarkar@mit.edu>
 
 """
 
+import scipy.stats
+
 ucsc_bed_format = [str, int, int, str, float]
 impg_format = [str, int, str, str, float, float]
 legend_format = [str, int, str, str, str]

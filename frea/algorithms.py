@@ -63,11 +63,13 @@ def moments(xs):
     """
     running_mean = next(iter(xs))
     running_variance = 0
-    for i, x in enumerate(xs):
-        new_mean = running_mean + (x - running_mean) / (i + 2)
+    n = 1
+    for x in xs:
+        n += 1
+        new_mean = running_mean + (x - running_mean) / n
         running_variance += (x - running_mean) * (x - new_mean)
         running_mean = new_mean
-    running_variance /= ntrials
+    running_variance /= n
     return running_mean, running_variance
 
 def benjamini_hochberg(data, key=operator.itemgetter(0), fdr=.05, n_tests=None):
@@ -86,3 +88,41 @@ target FDR.
             threshold = p
         if threshold is None or p <= threshold:
             yield row
+
+def merge(*iterables, key):
+    """Merge sorted iterables according to key.
+
+    Backport this from Python 3.5
+
+    https://hg.python.org/cpython/rev/f5521f5dec4a
+
+    """
+    h = []
+    h_append = h.append
+    _heapify = heapq.heapify
+    _heappop = heapq.heappop
+    _heapreplace = heapq.heapreplace
+    direction = 1
+    for order, it in enumerate(map(iter, iterables)):
+        try:
+            next = it.__next__
+            value = next()
+            h_append([key(value), order * direction, value, next])
+        except StopIteration:
+            pass
+    _heapify(h)
+    while len(h) > 1:
+        try:
+            while True:
+                key_value, order, value, next = s = h[0]
+                yield value
+                value = next()
+                s[0] = key(value)
+                s[2] = value
+                _heapreplace(h, s)
+        except StopIteration:
+            _heappop(h)
+    if h:
+        key_value, order, value,  next = h[0]
+        yield value
+        yield from next.__self__
