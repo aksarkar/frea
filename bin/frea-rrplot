@@ -80,7 +80,7 @@ c=$(echo $features | sed "s#.*features##" | cut -d/ -f3- | \
     fi
 } | \
     sort -k4 | \
-    python -m frea.ld.weight
-    sort -k1gr | \
-    cut -f2 | \
+    bedtools groupby -g 4 -c 5,6 -o min,mean | \
+    sort -k2gr | \
+    cut -f3 | \
     python -m frea.rrplot $phenotype $f $c $binsize $cumulative
