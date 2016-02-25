@@ -110,3 +110,29 @@ plot_motif_cofactors <- function(filename) {
               print(master_regulator_by_cofactor(x))
               dev.off()
           })}
+
+expression_by_master_regulator <- function(expression) {
+    data(honeybadger_cluster_density)
+    (ggplot(expression, aes(x=cluster, y=corr, fill=cluster)) +
+     geom_bar(stat='identity') +
+     geom_hline(yintercept=0, size=I(.1)) +
+     scale_x_discrete(name='Enhancer module') +
+     scale_y_continuous(name='Expression correlation', limits=c(-1, 1), breaks=c(-1, 0, 1)) +
+     scale_fill_manual(values=color_by_cluster_top(honeybadger_cluster_density)) +
+     facet_wrap(~ tf, ncol=1, scales='free') +
+     theme_nature +
+     theme(axis.text.x=element_blank()))
+}
+
+plot_expression_by_master_regulator <- function(enrichments, expression) {
+    data(honeybadger_cluster_density)
+    master_regulators <- read.delim(enrichments, header=FALSE, sep=' ')
+    master_regulators$motif <- unlist(lapply(strsplit(as.character(master_regulators$V2), "_"), function (x) {x[1]}))
+    expr_corr <- read.delim(gzfile(expression), header=FALSE)
+    expr_corr$cluster <- factor(sub("c", "", expr_corr$V2), levels=row.names(honeybadger_cluster_density))
+    expr_corr_by_master_regulator <- ddply(merge(data.frame(master_regulators), expr_corr, by.x='motif', by.y='V1'),
+                                           .(V1, cluster), function (x) {data.frame(tf=with(x, V2.x[which.min(V4)]), cluster=x$cluster, corr=mean(x$V3.y))})
+    Cairo(type='pdf', file=sub(".summary$", ".expression.pdf", enrichments), width=190, height=60, units='mm')
+    print(expression_by_master_regulator(expr_corr_by_master_regulator))
+    dev.off()
+}
