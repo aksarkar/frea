@@ -111,28 +111,43 @@ plot_motif_cofactors <- function(filename) {
               dev.off()
           })}
 
-expression_by_master_regulator <- function(expression) {
+expression_by_tf <- function(expression) {
     data(honeybadger_cluster_density)
-    (ggplot(expression, aes(x=cluster, y=corr, fill=cluster)) +
+    (ggplot(expression, aes(x=cluster, y=V3.y, fill=cluster)) +
      geom_bar(stat='identity') +
-     geom_hline(yintercept=0, size=I(.1)) +
-     scale_x_discrete(name='Enhancer module') +
-     scale_y_continuous(name='Expression correlation', limits=c(-1, 1), breaks=c(-1, 0, 1)) +
+     scale_y_continuous(breaks=seq(-1, 1, .5)) +
      scale_fill_manual(values=color_by_cluster_top(honeybadger_cluster_density)) +
-     facet_wrap(~ tf, ncol=1, scales='free') +
+     facet_wrap(~ tf, ncol=1) +
+     labs(x='Enhancer module', y='TF expression-module activity correlation') +
      theme_nature +
      theme(axis.text.x=element_blank()))
 }
 
-plot_expression_by_master_regulator <- function(enrichments, expression) {
+pheno_by_tf <- function(expression) {
+    (heatmap(ggplot(expression, aes(x=pheno, y=tf, fill=log10(V5)))) +
+     scale_y_discrete(limits=rev(levels(expression$tf))) +
+     labs(x='Phenotype', y='Transcription factor') +
+     scale_heatmap() +
+     theme(legend.position='below'))
+}
+
+plot_tf_expression <- function(enrichment_file, expr_file) {
     data(honeybadger_cluster_density)
-    master_regulators <- read.delim(enrichments, header=FALSE, sep=' ')
-    master_regulators$motif <- unlist(lapply(strsplit(as.character(master_regulators$V2), "_"), function (x) {x[1]}))
-    expr_corr <- read.delim(gzfile(expression), header=FALSE)
+    constitutive <- row.names(honeybadger_cluster_density)[1:3]
+    enrichments <- subset(read.delim(gzfile(enrichment_file), header=FALSE, sep=' '), V2 %in% constitutive)
+    enrichments$tf <- sub("_.*$", "", enrichments$V4)
+    enrichments$pheno <- toupper(sub("[^-]*-", "", enrichments$V1))
+    expr_corr <- read.delim(gzfile(expr_file), header=FALSE)
     expr_corr$cluster <- factor(sub("c", "", expr_corr$V2), levels=row.names(honeybadger_cluster_density))
-    expr_corr_by_master_regulator <- ddply(merge(data.frame(master_regulators), expr_corr, by.x='motif', by.y='V1'),
-                                           .(V1, cluster), function (x) {data.frame(tf=with(x, V2.x[which.min(V4)]), cluster=x$cluster, corr=mean(x$V3.y))})
-    Cairo(type='pdf', file=sub(".summary$", ".expression.pdf", enrichments), width=190, height=60, units='mm')
-    print(expression_by_master_regulator(expr_corr_by_master_regulator))
+    enriched_tf_expr <- ddply(merge(enrichments, expr_corr, by.x='tf', by.y='V1'),
+                              .(cluster, V3.x), function(x) {x[which.min(x$V6),]})
+    best <- daply(enriched_tf_expr, .(tf), function (x) {which.max(x$V3.y)})
+    enriched_tf_expr$tf <- factor(enriched_tf_expr$tf, levels=names(best)[order(best)])
+
+    Cairo(type='pdf', file=sub('.txt.gz$', '-expression.pdf', enrichment_file), width=150, height=100, units='mm')
+    print(expression_by_tf(enriched_tf_expr))
+    dev.off()
+    Cairo(type='pdf', file=sub('.txt.gz$', '-by-pheno.pdf', enrichment_file), width=50, height=50, units='mm')
+    print(pheno_by_tf(enriched_tf_expr))
     dev.off()
 }
