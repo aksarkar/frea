@@ -16,5 +16,5 @@ PWMS=${1?"missing motifs"}
 VARS=$(mktemp)
 REGIONS=$(mktemp)
 awk -v v=$VARS -v r=$REGIONS '{gsub(/\|/, "\t", $4); print $4 "\talt" >v; print ".", $6, $7, $8 >r}'
-extract-mfa -k 1 $(GetOrgVars.sh hg19 ALIGNFILE) <$REGIONS | apply-var -v $VARS | motif-match -n -1 -m $PWMS -V 1 | awk -v m=$MASTER '/alt/ && ! /shuffled/ {sub(/_8mer$/, "", $1); print m, $0}'
+extract-mfa -k 1 $(GetOrgVars.sh hg19 ALIGNFILE) <$REGIONS | apply-var -v $VARS | motif-match -n -1 -m <(zcat $PWMS) -V 1 | awk -v m=$MASTER '/alt/ && ! /shuffled/ {sub(/_8mer$/, "", $1); print m, $0}'
 rm -f $VARS $REGIONS
