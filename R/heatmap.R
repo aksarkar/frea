@@ -113,9 +113,9 @@ plot_motif_cofactors <- function(filename) {
 
 expression_by_tf <- function(expression) {
     data(honeybadger_cluster_density)
-    (ggplot(expression, aes(x=cluster, y=V3.y, fill=cluster)) +
-     geom_bar(stat='identity') +
-     scale_y_continuous(breaks=seq(-1, 1, .5)) +
+    my_expression <- ddply(expression, .(cluster, tf), summarize, corr=mean(corr))
+    (ggplot(my_expression, aes(x=cluster, y=corr, fill=cluster)) +
+     geom_bar(position='dodge', stat='identity') +
      scale_fill_manual(values=color_by_cluster_top(honeybadger_cluster_density)) +
      facet_wrap(~ tf, ncol=1) +
      labs(x='Enhancer module', y='TF expression-module activity correlation') +
@@ -124,7 +124,7 @@ expression_by_tf <- function(expression) {
 }
 
 pheno_by_tf <- function(expression) {
-    (heatmap(ggplot(expression, aes(x=pheno, y=tf, fill=log10(V5)))) +
+    (heatmap(ggplot(expression, aes(x=pheno, y=tf, fill=log10(odds)))) +
      scale_y_discrete(limits=rev(levels(expression$tf))) +
      labs(x='Phenotype', y='Transcription factor') +
      scale_heatmap() +
@@ -140,14 +140,14 @@ plot_tf_expression <- function(enrichment_file, expr_file) {
     expr_corr <- read.delim(gzfile(expr_file), header=FALSE)
     expr_corr$cluster <- factor(sub("c", "", expr_corr$V2), levels=row.names(honeybadger_cluster_density))
     enriched_tf_expr <- ddply(merge(enrichments, expr_corr, by.x='tf', by.y='V1'),
-                              .(cluster, V3.x), function(x) {x[which.min(x$V6),]})
-    best <- daply(enriched_tf_expr, .(tf), function (x) {which.max(x$V3.y)})
+                              .(pheno, cluster, tf), function(x) {data.frame(odds=max(x$V5), corr=mean(x$V3.y))})
+    best <- daply(enriched_tf_expr, .(tf), function (x) {which.max(x$corr)})
     enriched_tf_expr$tf <- factor(enriched_tf_expr$tf, levels=names(best)[order(best)])
 
-    Cairo(type='pdf', file=sub('.txt.gz$', '-expression.pdf', enrichment_file), width=150, height=100, units='mm')
+    Cairo(type='pdf', file=sub('.txt.gz$', '-expression.pdf', enrichment_file), width=150, height=200, units='mm')
     print(expression_by_tf(enriched_tf_expr))
     dev.off()
-    Cairo(type='pdf', file=sub('.txt.gz$', '-by-pheno.pdf', enrichment_file), width=50, height=50, units='mm')
+    Cairo(type='pdf', file=sub('.txt.gz$', '-by-pheno.pdf', enrichment_file), width=50, height=200, units='mm')
     print(pheno_by_tf(enriched_tf_expr))
     dev.off()
 }
