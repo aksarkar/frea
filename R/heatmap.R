@@ -112,42 +112,54 @@ plot_motif_cofactors <- function(filename) {
           })}
 
 expression_by_tf <- function(expression) {
-    data(honeybadger_cluster_density)
-    my_expression <- ddply(expression, .(cluster, tf), summarize, corr=mean(corr))
-    (ggplot(my_expression, aes(x=cluster, y=corr, fill=cluster)) +
+    my_expression <- ddply(expression, .(eid, tf), summarize, rpkm=mean(rpkm))
+    (ggplot(my_expression, aes(x=eid, y=rpkm, fill=eid)) +
      geom_bar(position='dodge', stat='identity') +
-     scale_fill_manual(values=color_by_cluster_top(honeybadger_cluster_density)) +
-     facet_wrap(~ tf, ncol=1) +
-     labs(x='Enhancer module', y='TF expression-module activity correlation') +
+     fill_by_eid +
+     facet_wrap(~ tf, ncol=4, scales='free') +
+     labs(x='Reference epigenome', y='TF expression-module activity correlation') +
      theme_nature +
      theme(axis.text.x=element_blank()))
 }
 
 pheno_by_tf <- function(expression) {
-    (heatmap(ggplot(expression, aes(x=pheno, y=tf, fill=log10(odds)))) +
-     scale_y_discrete(limits=rev(levels(expression$tf))) +
-     labs(x='Phenotype', y='Transcription factor') +
-     scale_heatmap() +
-     theme(legend.position='below'))
+    my_expression <- ddply(expression, .(pheno, tf), summarize, odds=log10(unique(odds)))
+    (heatmap(ggplot(my_expression, aes(x=pheno, y=tf, fill=odds))) +
+     scale_y_discrete(limits=rev(levels(my_expression$tf))) +
+     labs(y='Phenotype', x='Transcription factor') +
+     scale_heatmap(name='Log odds ratio') +
+     theme(legend.position='bottom',
+           legend.key.height=grid::unit(2.5, 'mm'),
+           axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)))
 }
 
-plot_tf_expression <- function(enrichment_file, expr_file) {
+plot_tf_expression <- function(enrichment_file, ensembl_file, sample_file, rpkm_file) {
     data(honeybadger_cluster_density)
     constitutive <- row.names(honeybadger_cluster_density)[1:3]
     enrichments <- subset(read.delim(gzfile(enrichment_file), header=FALSE, sep=' '), V2 %in% constitutive)
     enrichments$tf <- sub("_.*$", "", enrichments$V4)
     enrichments$pheno <- toupper(sub("[^-]*-", "", enrichments$V1))
-    expr_corr <- read.delim(gzfile(expr_file), header=FALSE)
-    expr_corr$cluster <- factor(sub("c", "", expr_corr$V2), levels=row.names(honeybadger_cluster_density))
-    enriched_tf_expr <- ddply(merge(enrichments, expr_corr, by.x='tf', by.y='V1'),
-                              .(pheno, cluster, tf), function(x) {data.frame(odds=max(x$V5), corr=mean(x$V3.y))})
-    best <- daply(enriched_tf_expr, .(tf), function (x) {which.max(x$corr)})
-    enriched_tf_expr$tf <- factor(enriched_tf_expr$tf, levels=names(best)[order(best)])
+    enrichments <- ddply(enrichments, .(pheno, tf), function (x){data.frame(odds=max(x$V5))})
 
-    Cairo(type='pdf', file=sub('.txt.gz$', '-expression.pdf', enrichment_file), width=150, height=200, units='mm')
+    samples <- read.delim(sample_file, header=FALSE)
+    genes <- read.delim(ensembl_file, header=FALSE)[c('V1', 'V7')]
+    rpkm_by_eid <- read.delim(gzfile(rpkm_file), header=FALSE, skip=1)
+    colnames(rpkm_by_eid) <- c('id', as.character(samples$V1))
+
+    enrichment_by_ensembl_id <- merge(enrichments, genes, by.x='tf', by.y='V7')
+    enriched_tf_expr <- melt(merge(enrichment_by_ensembl_id, rpkm_by_eid, by.x='V1', by.y='id'),
+                             id.vars=c('pheno', 'tf', 'odds', 'V1'),
+                             variable.name='eid',
+                             value.name='rpkm')
+    enriched_tf_expr$eid <- factor(enriched_tf_expr$eid, levels=eid_ordering)
+    enriched_tf_expr <- subset(enriched_tf_expr, !is.na(eid))
+    best <- ddply(enriched_tf_expr, .(tf), function (x) {x$eid[which.max(x$rpkm)]})
+    enriched_tf_expr$tf <- factor(enriched_tf_expr$tf, levels=with(best, tf[order(V1)]))
+
+    Cairo(type='pdf', file=sub('.txt.gz$', '-expression.pdf', enrichment_file), width=190, height=100, units='mm')
     print(expression_by_tf(enriched_tf_expr))
     dev.off()
-    Cairo(type='pdf', file=sub('.txt.gz$', '-by-pheno.pdf', enrichment_file), width=50, height=200, units='mm')
+    Cairo(type='pdf', file=sub('.txt.gz$', '-by-pheno.pdf', enrichment_file), width=50, height=100, units='mm')
     print(pheno_by_tf(enriched_tf_expr))
     dev.off()
 }
