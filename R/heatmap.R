@@ -2,6 +2,7 @@ requireNamespace('Cairo')
 requireNamespace('ggplot2')
 requireNamespace('gdata')
 requireNamespace('grid')
+requireNamespace('gridExtra')
 requireNamespace('gtable')
 requireNamespace('reshape2')
 
@@ -22,15 +23,20 @@ sparse_heatmap <- function(plot) {
     heatmap(plot) + theme(panel.grid.major=element_line(color='gray90'))
 }
 
-epigenome_by_tissue <- 
-    (heatmap(ggplot(roadmap_sample_info, aes(x=EID, y=rep(1), fill=EID))) +
-     scale_x_discrete(limits=eid_ordering) +
+epigenome_by_tissue <- function(keep=NULL) {
+    if (is.null(keep)) {
+        keep <- roadmap_sample_info$EID
+    }
+    eids <- subset(roadmap_sample_info, EID %in% keep)
+    eids$EID <- factor(eids$EID, levels=eid_ordering)
+    (heatmap(ggplot(eids, aes(x=EID, y=rep(1), fill=EID))) +
      scale_y_discrete() +
      fill_by_eid +
      theme(axis.ticks=element_blank(),
            axis.title=element_blank(),
            axis.text=element_blank(),
            axis.line=element_blank()))
+}
 
 cluster_by_tissue <- function(cluster_density, keep=NULL) {
     if (is.null(keep)) {
@@ -112,21 +118,21 @@ plot_motif_cofactors <- function(filename) {
           })}
 
 expression_by_tf <- function(expression) {
-    my_expression <- ddply(expression, .(eid, tf), summarize, rpkm=mean(rpkm))
-    (ggplot(my_expression, aes(x=eid, y=rpkm, fill=eid)) +
-     geom_bar(position='dodge', stat='identity') +
-     fill_by_eid +
-     facet_wrap(~ tf, ncol=4, scales='free') +
-     labs(x='Reference epigenome', y='TF expression-module activity correlation') +
+    expression_by_tf <- ddply(expression, .(eid, tf), summarize, rpkm=mean(rpkm))
+    my_expression <- ddply(expression_by_tf, .(tf), summarize, eid=eid, rpkm=rpkm / max(rpkm))
+    (heatmap(ggplot(my_expression, aes(x=eid, y=tf, fill=rpkm))) +
+     scale_fill_gradient(name='Relative expression', low='white', high='black') +
+     labs(x='Reference epigenome', y='Transcription factor') +
      theme_nature +
-     theme(axis.text.x=element_blank()))
+     theme(legend.position='bottom',
+           legend.key.height=grid::unit(2.5, 'mm'),
+           axis.text.x=element_blank()))
 }
 
 pheno_by_tf <- function(expression) {
     my_expression <- ddply(expression, .(pheno, tf), summarize, odds=log10(unique(odds)))
     (heatmap(ggplot(my_expression, aes(x=pheno, y=tf, fill=odds))) +
-     scale_y_discrete(limits=rev(levels(my_expression$tf))) +
-     labs(y='Phenotype', x='Transcription factor') +
+     labs(x='Phenotype', y='Transcription factor') +
      scale_heatmap(name='Log odds ratio') +
      theme(legend.position='bottom',
            legend.key.height=grid::unit(2.5, 'mm'),
@@ -154,12 +160,19 @@ plot_tf_expression <- function(enrichment_file, ensembl_file, sample_file, rpkm_
     enriched_tf_expr$eid <- factor(enriched_tf_expr$eid, levels=eid_ordering)
     enriched_tf_expr <- subset(enriched_tf_expr, !is.na(eid))
     best <- ddply(enriched_tf_expr, .(tf), function (x) {x$eid[which.max(x$rpkm)]})
-    enriched_tf_expr$tf <- factor(enriched_tf_expr$tf, levels=with(best, tf[order(V1)]))
+    enriched_tf_expr$tf <- factor(enriched_tf_expr$tf, levels=rev(with(best, tf[order(V1)])))
 
-    Cairo(type='pdf', file=sub('.txt.gz$', '-expression.pdf', enrichment_file), width=190, height=100, units='mm')
-    print(expression_by_tf(enriched_tf_expr))
-    dev.off()
-    Cairo(type='pdf', file=sub('.txt.gz$', '-by-pheno.pdf', enrichment_file), width=50, height=100, units='mm')
-    print(pheno_by_tf(enriched_tf_expr))
+    my_grobs <- lapply(list(pheno_by_tf(enriched_tf_expr),
+                            expression_by_tf(enriched_tf_expr),
+                            epigenome_by_tissue(unique(enriched_tf_expr$eid))),
+                       ggplotGrob)
+    my_layout <- rbind(c(1, 2), c(NA, 3))
+    select_grobs <- function(lay) {
+        id <- unique(c(t(lay)))
+        id[!is.na(id)]
+    }
+    Cairo(type='pdf', file=sub('.txt.gz$', '.pdf', enrichment_file), width=190, height=100, units='mm')
+    gridExtra::grid.arrange(grobs=my_grobs[select_grobs(my_layout)], layout_matrix=my_layout,
+                            heights=grid::unit(c(80, 20), 'mm'), widths=grid::unit(c(70, 120), 'mm'))
     dev.off()
 }
