@@ -122,11 +122,14 @@ expression_by_tf <- function(expression) {
     my_expression <- ddply(expression_by_tf, .(tf), summarize, eid=eid, rpkm=rpkm / max(rpkm))
     (heatmap(ggplot(my_expression, aes(x=eid, y=tf, fill=rpkm))) +
      scale_fill_gradient(name='Relative expression', low='white', high='black') +
-     labs(x='Reference epigenome', y='Transcription factor') +
+     labs(x='Reference epigenome') +
      theme_nature +
      theme(legend.position='bottom',
            legend.key.height=grid::unit(2.5, 'mm'),
-           axis.text.x=element_blank()))
+           legend.key.width=grid::unit(5, 'mm'),
+           axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+           axis.text.y=element_blank(),
+           axis.title.y=element_blank()))
 }
 
 pheno_by_tf <- function(expression) {
@@ -136,11 +139,13 @@ pheno_by_tf <- function(expression) {
      scale_heatmap(name='Log odds ratio') +
      theme(legend.position='bottom',
            legend.key.height=grid::unit(2.5, 'mm'),
+           legend.key.width=grid::unit(5, 'mm'),
            axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)))
 }
 
 plot_tf_expression <- function(enrichment_file, ensembl_file, sample_file, rpkm_file) {
     data(honeybadger_cluster_density)
+    # Parse the data
     constitutive <- row.names(honeybadger_cluster_density)[1:3]
     enrichments <- subset(read.delim(gzfile(enrichment_file), header=FALSE, sep=' '), V2 %in% constitutive)
     enrichments$tf <- sub("_.*$", "", enrichments$V4)
@@ -162,17 +167,27 @@ plot_tf_expression <- function(enrichment_file, ensembl_file, sample_file, rpkm_
     best <- ddply(enriched_tf_expr, .(tf), function (x) {x$eid[which.max(x$rpkm)]})
     enriched_tf_expr$tf <- factor(enriched_tf_expr$tf, levels=rev(with(best, tf[order(V1)])))
 
+    # Bind the heatmap grobs
     my_grobs <- lapply(list(pheno_by_tf(enriched_tf_expr),
                             expression_by_tf(enriched_tf_expr),
                             epigenome_by_tissue(unique(enriched_tf_expr$eid))),
                        ggplotGrob)
-    my_layout <- rbind(c(1, 2), c(NA, 3))
-    select_grobs <- function(lay) {
-        id <- unique(c(t(lay)))
-        id[!is.na(id)]
-    }
+    my_gtable <- gtable:::cbind_gtable(my_grobs[[1]], my_grobs[[2]], size='last')
+
+    # Fix up the widths/heights since these get clobbered by bind
+    my_gtable$widths <- grid:::unit.list(my_gtable$widths)
+    my_gtable$heights <- grid:::unit.list(my_gtable$heights)
+    widths <- lapply(list(enriched_tf_expr$pheno, enriched_tf_expr$eid), #
+                     function(x) grid::unit(length(unique(x)), 'null'))
+    height <- grid::unit(length(unique(enriched_tf_expr$tf)), 'null')
+    my_gtable$widths[my_gtable$layout$l[grepl("panel", my_gtable$layout$name)]] <- widths
+    my_gtable$heights[my_gtable$layout$t[grepl("panel", my_gtable$layout$name)]] <- list(height)
+
+    # Add the tissue colors grob
+    my_gtable <- gtable::gtable_add_rows(my_gtable, grid::unit(8, 'mm'), 1)
+    my_gtable <- gtable::gtable_add_grob(my_gtable, my_grobs[[3]]$grobs[[4]], 2, 9, name='tissues')
+
     Cairo(type='pdf', file=sub('.txt.gz$', '.pdf', enrichment_file), width=190, height=100, units='mm')
-    gridExtra::grid.arrange(grobs=my_grobs[select_grobs(my_layout)], layout_matrix=my_layout,
-                            heights=grid::unit(c(80, 20), 'mm'), widths=grid::unit(c(70, 120), 'mm'))
+    grid::grid.draw(my_gtable)
     dev.off()
 }
