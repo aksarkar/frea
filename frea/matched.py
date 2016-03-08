@@ -56,7 +56,7 @@ def build_table():
         iters = [(line.split() for line in f) for f in files]
         for it in iters:
             next(it)
-        key=operator.itemgetter(0)
+        key = operator.itemgetter(0)
         table = []
         for k, g in itertools.groupby(merge(*iters, key=key), key=key):
             props = list(g)

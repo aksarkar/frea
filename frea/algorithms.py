@@ -82,7 +82,7 @@ target FDR.
     if n_tests is None:
         n_tests = len(data)
     threshold = None
-    for i, row in enumerate(data):
+    for i, row in enumerate(sorted(data, key=key)):
         p = key(row)
         if threshold is None and p > fdr * (i + 1) / n_tests:
             threshold = p
