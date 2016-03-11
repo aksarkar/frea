@@ -20,6 +20,5 @@ Collate:
     'enrichment.R'
     'heatmap.R'
     'qqplot.R'
-    'rrplot-summarize.R'
     'rrplot.R'
     'ticks.R'
