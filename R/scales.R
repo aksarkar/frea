@@ -46,3 +46,16 @@ roadmap_tissue_info <-
 tissue_ordering <- with(roadmap_tissue_info, tissue[order(position)])
 
 color_by_tissue <- with(roadmap_tissue_info, setNames(as.character(color), tissue))
+
+roadmap_tissue_legend <- function(theme_args, guide_args) {
+    roadmap_tissue_info$tissue <- factor(roadmap_tissue_info$tissue, levels=tissue_ordering)
+    dummy_plot <- (ggplot(roadmap_tissue_info, aes(x=tissue, fill=tissue)) +
+                   geom_bar() +
+                   scale_fill_manual(name='Tissue', values=color_by_tissue,
+                                     guide=do.call(guide_legend, guide_args)) +
+                   theme_nature +
+                   do.call(theme, theme_args))
+    my_gtable <- ggplotGrob(dummy_plot)
+    my_gtable$grobs[grepl('guide-box', my_gtable$layout$name)][[1]]
+}
+
