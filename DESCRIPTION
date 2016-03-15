@@ -19,6 +19,8 @@ Collate:
     'scales.R'
     'enrichment.R'
     'heatmap.R'
+    'motifs.R'
     'qqplot.R'
     'rrplot.R'
+    'tf_expression.R'
     'ticks.R'
