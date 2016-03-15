@@ -3,6 +3,7 @@
 Author: Abhishek Sarkar <aksarkar@mit.edu>
 
 """
+import heapq
 import itertools
 import operator
 
