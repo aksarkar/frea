@@ -78,7 +78,7 @@ plot_tf_expression <- function(enrichment_file, ensembl_file, sample_file, rpkm_
     my_gtable <- gtable::gtable_add_rows(my_gtable, grid::unit(8, 'mm'), 1)
     my_gtable <- gtable::gtable_add_grob(my_gtable, my_grobs[[3]]$grobs[[4]], 2, 9, name='tissues')
 
-    Cairo(type='pdf', file=sub('.txt.gz$', '.pdf', enrichment_file), width=190, height=100, units='mm')
+    Cairo(type='pdf', file=sub('.txt.gz$', '-expression.pdf', enrichment_file), width=190, height=100, units='mm')
     grid::grid.draw(my_gtable)
     dev.off()
 }
