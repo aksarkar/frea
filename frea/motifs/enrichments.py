@@ -1,3 +1,8 @@
+"""Summarize motif enrichments.
+
+Author: Abhishek Sarkar <aksarkar@mit.edu>
+
+"""
 import collections
 import glob
 import itertools
@@ -8,7 +13,7 @@ Enrichment = collections.namedtuple('Enrichment', ['cluster', 'motif', 'odds_rat
 Cofactor = collections.namedtuple('Cofactor', ['motif', 'score'])
 
 def parse_motif_matches(filename):
-    """Yield (master regulator, cofactor, score) tuples"""
+    """Return a dict mapping master regulators (string) to cofactors (Cofactor)"""
     result = collections.defaultdict(list)
     with open(filename) as f:
         data = (line.split() for line in f)
@@ -19,7 +24,7 @@ def parse_motif_matches(filename):
     return result
 
 def parse_motif_enrichments(filename):
-    """Yield (cluster, motif, odds, p) tuples
+    """Yield Enrichment namedtuples
 
     Take the motif with best p-value as cluster representative. This assumes
     input data is already appropriately sorted.
@@ -37,15 +42,15 @@ def generate_long_form():
         cofactors = parse_motif_matches('{}.{}.matches'.format(phenotype, cluster))
         for enrichment in parse_motif_enrichments(filename):
             for cofactor in cofactors[enrichment.motif]:
-                yield phenotype, cluster, motif_to_cluster[enrichment.motif], motif_to_cluster[cofactor.motif], enrichment, cofactor
+                yield phenotype, cluster, enrichment, cofactor
 
 def output_long_form(output_key):
     """Output long-form tuples for use in plotting"""
-    key = operator.itemgetter(2, 3)
+    key = operator.itemgetter(0, 1)
     data = sorted(generate_long_form(), key=key)
     for k, g in itertools.groupby(data, key=key):
         for record in g:
-            phenotype, cluster, _, _, enrichment, cofactor = record
+            phenotype, cluster, enrichment, cofactor = record
             print(phenotype, cluster, *output_key(enrichment, cofactor))
     
 def output_enrichments():
