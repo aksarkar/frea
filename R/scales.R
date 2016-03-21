@@ -59,3 +59,15 @@ roadmap_tissue_legend <- function(theme_args, guide_args) {
     my_gtable$grobs[grepl('guide-box', my_gtable$layout$name)][[1]]
 }
 
+phenotype_legend <- function(theme_args, guide_args) {
+    pheno <- factor(c('AD', 'BIP', 'CAD', 'CD', 'RA', 'SCZ', 'T1D', 'T2D'),
+                    ordered=TRUE)
+    dummy_plot <- (ggplot(data.frame(x=pheno, y=1), aes(x, y, fill=pheno)) +
+                   geom_bar(stat='identity') +
+                   scale_fill_brewer(name='Phenotype', palette='Dark2',
+                                     guide=do.call(guide_legend, guide_args)) +
+                   theme_nature +
+                   do.call(theme, theme_args))
+    my_gtable <- ggplotGrob(dummy_plot)
+    my_gtable$grobs[grepl('guide-box', my_gtable$layout$name)][[1]]
+}
