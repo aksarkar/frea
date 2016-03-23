@@ -10,17 +10,52 @@ NULL
 enrichment_by_cluster <- function(enrichments, cluster_density, scale_name) {
     (heatmap(ggplot(enrichments, aes(x=cluster, y=pheno, fill=val))) +
      scale_heatmap(name=scale_name) +
+     scale_y_discrete(levels=rev(levels(enrichments$pheno))) +
      labs(x='Enhancer module', y='Phenotype') +
      theme_nature +
      theme(axis.text.x=element_blank(),
            legend.position='right'))
 }
 
-plot_enhancer_enrichments <- function(filename, cluster_density, plot_log_fold=FALSE, flip=FALSE) {
+parse_enhancer_enrichments <- function(filename) {
     enrichments <- read.delim(filename, header=FALSE, sep=' ')
-    enrichments$pheno <- toupper(sub('^[^-]*-', '', enrichments$V1))
+    enrichments$pheno <- factor(toupper(sub('^[^-]*-', '', enrichments$V1)))
+    subset(enrichments, V6 > 0 & V7 > 0)
+}
+
+plot_enhancer_enrichments_by_eid <- function(filename) {
+    data(roadmap_sample_info)
+    enrichments <- parse_enhancer_enrichments(filename)
+    enrichments$eid <- factor(enrichments$V3, levels=eid_ordering)
+    enrichments <- transform(enrichments, val=(V5 - V6)/ sqrt(V7))
+
+    my_ggplot <- (heatmap(ggplot(enrichments, aes(x=eid, y=pheno, fill=val))) +
+                  scale_heatmap(name='z-score') +
+                  scale_y_discrete(limits=rev(levels(enrichments$pheno))) +
+                  labs(x='Reference epigenome', y='Phenotype') +
+                  theme(axis.text.x=element_blank(),
+                        legend.position='bottom'))
+    my_gtable <- ggplotGrob(my_ggplot)
+
+    ## Add tissue colors
+    tissue_grob <- ggplotGrob(epigenome_by_tissue() + coord_flip())$grobs[[4]]
+    my_gtable <- gtable::gtable_add_rows(my_gtable, unit(2, 'mm'), 0)
+    my_gtable <- gtable::gtable_add_grob(my_gtable, tissue_grob, t=1, l=4, r=4)
+
+    ## Add tissue legend
+    my_legend <- roadmap_tissue_legend(list(legend.position='bottom'), list(direction='horizontal', nrow=2))
+    my_gtable <- gtable::gtable_add_rows(my_gtable, unit(10, 'mm'))
+    my_gtable <- gtable::gtable_add_grob(my_gtable, my_legend, t=dim(my_gtable)[1], l=1, r=dim(my_gtable)[2])
+
+    Cairo(type='pdf', file=sub('.in$', '.pdf', filename), width=210, height=50, units='mm')
+    grid::grid.draw(my_gtable)
+    dev.off()
+}
+
+plot_enhancer_enrichments <- function(filename, cluster_density, plot_log_fold=FALSE, flip=FALSE) {
+    enrichments <- parse_enhancer_enrichments(filename)
     enrichments$cluster <- factor(enrichments$V3, levels=row.names(cluster_density))
-    enrichments <- subset(enrichments, V6 > 0 & V7 > 0)
+
     if (plot_log_fold) {
         enrichments <- transform(enrichments, val=log10(V5 / V6))
         scale_name <- "Log fold enrichment"
