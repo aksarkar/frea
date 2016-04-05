@@ -7,7 +7,7 @@ requireNamespace('reshape2')
 #' @include heatmap.R scales.R theme_nature.R
 
 master_regulator_by_phenotype <- function(enrichments) {
-    (sparse_heatmap(ggplot(enrichments, aes(x=tf, y=pheno, fill=log10(V5)))) +
+    (heatmap(ggplot(enrichments, aes(x=tf, y=pheno, fill=log10(V5)))) +
      scale_heatmap(name='Log odds ratio', limits=c(0, max(log10(enrichments$V5))), breaks=seq(0, 2)) +
      scale_y_discrete(limits=rev(levels(enrichments$pheno))) +
      labs(x='Master regulator', y='Phenotype') +
