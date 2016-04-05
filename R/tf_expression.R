@@ -6,6 +6,7 @@ requireNamespace('gridExtra')
 requireNamespace('gtable')
 requireNamespace('reshape2')
 
+#' @importFrom grid unit
 #' @include heatmap.R scales.R theme_nature.R
 
 expression_by_tf <- function(expression) {
@@ -16,8 +17,8 @@ expression_by_tf <- function(expression) {
      labs(x='Reference epigenome') +
      theme_nature +
      theme(legend.position='bottom',
-           legend.key.height=grid::unit(2.5, 'mm'),
-           legend.key.width=grid::unit(5, 'mm'),
+           legend.key.height=unit(2.5, 'mm'),
+           legend.key.width=unit(5, 'mm'),
            axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
            axis.text.y=element_blank(),
            axis.title.y=element_blank()))
@@ -29,8 +30,8 @@ pheno_by_tf <- function(expression) {
      labs(x='Phenotype', y='Transcription factor') +
      scale_heatmap(name='Log odds ratio') +
      theme(legend.position='bottom',
-           legend.key.height=grid::unit(2.5, 'mm'),
-           legend.key.width=grid::unit(5, 'mm'),
+           legend.key.height=unit(2.5, 'mm'),
+           legend.key.width=unit(5, 'mm'),
            axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)))
 }
 
@@ -59,9 +60,20 @@ plot_tf_expression <- function(enrichment_file, ensembl_file, sample_file, rpkm_
     enriched_tf_expr$tf <- factor(enriched_tf_expr$tf, levels=rev(with(best, tf[order(V1)])))
 
     # Bind the heatmap grobs
+    best_tissue_by_tf <- (heatmap(ggplot(ddply(enriched_tf_expr, .(tf),
+                                               function (x) {
+                                                   as.character(x$eid[which.max(x$rpkm)])
+                                               }),
+                                         aes(x=rep(1), y=tf, fill=V1)) +
+                                  fill_by_eid +
+                                  theme(axis.ticks=element_blank(),
+                                        axis.title=element_blank(),
+                                        axis.text=element_blank(),
+                                        axis.line=element_blank())))
     my_grobs <- lapply(list(pheno_by_tf(enriched_tf_expr),
                             expression_by_tf(enriched_tf_expr),
-                            epigenome_by_tissue(unique(enriched_tf_expr$eid))),
+                            epigenome_by_tissue(unique(enriched_tf_expr$eid)),
+                            best_tissue_by_tf),
                        ggplotGrob)
     my_gtable <- gtable:::cbind_gtable(my_grobs[[1]], my_grobs[[2]], size='last')
 
@@ -69,16 +81,24 @@ plot_tf_expression <- function(enrichment_file, ensembl_file, sample_file, rpkm_
     my_gtable$widths <- grid:::unit.list(my_gtable$widths)
     my_gtable$heights <- grid:::unit.list(my_gtable$heights)
     widths <- lapply(list(enriched_tf_expr$pheno, enriched_tf_expr$eid), #
-                     function(x) grid::unit(length(unique(x)), 'null'))
-    height <- grid::unit(length(unique(enriched_tf_expr$tf)), 'null')
+                     function(x) unit(length(unique(x)), 'null'))
+    height <- unit(length(unique(enriched_tf_expr$tf)), 'null')
     my_gtable$widths[my_gtable$layout$l[grepl("panel", my_gtable$layout$name)]] <- widths
     my_gtable$heights[my_gtable$layout$t[grepl("panel", my_gtable$layout$name)]] <- list(height)
 
     # Add the tissue colors grob
-    my_gtable <- gtable::gtable_add_rows(my_gtable, grid::unit(8, 'mm'), 1)
+    my_gtable <- gtable::gtable_add_rows(my_gtable, unit(3, 'mm'), 1)
     my_gtable <- gtable::gtable_add_grob(my_gtable, my_grobs[[3]]$grobs[[4]], 2, 9, name='tissues')
+    my_gtable <- gtable::gtable_add_cols(my_gtable, unit(3, 'mm'), 6)
+    my_gtable <- gtable::gtable_add_grob(my_gtable, my_grobs[[4]]$grobs[[4]], t=4, l=7, name='best')
+    
+    ## Add the tissue legend
+    my_legend <- roadmap_tissue_legend(theme_args=list(legend.position='bottom'),
+                                       guide_args=list(direction='horizontal', nrow=2))
+    my_gtable <- gtable::gtable_add_rows(my_gtable, unit(1, 'lines'))
+    my_gtable <- gtable::gtable_add_grob(my_gtable, my_legend, t=-1, l=1, r=-1)
 
-    Cairo(type='pdf', file=sub('.txt.gz$', '-expression.pdf', enrichment_file), width=190, height=100, units='mm')
+    Cairo(type='pdf', file=sub('.txt.gz$', '-expression.pdf', enrichment_file), width=190, height=120, units='mm')
     grid::grid.draw(my_gtable)
     dev.off()
 }

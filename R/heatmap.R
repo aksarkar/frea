@@ -29,8 +29,7 @@ epigenome_by_tissue <- function(keep=NULL) {
     }
     eids <- subset(roadmap_sample_info, EID %in% keep)
     eids$EID <- factor(eids$EID, levels=eid_ordering)
-    (heatmap(ggplot(eids, aes(y=EID, x=rep(1), fill=EID))) +
-     scale_y_discrete(limits=rev(eid_ordering)) +
+    (heatmap(ggplot(eids, aes(x=EID, y=rep(1), fill=EID))) +
      fill_by_eid +
      theme(axis.ticks=element_blank(),
            axis.title=element_blank(),

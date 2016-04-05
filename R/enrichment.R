@@ -40,7 +40,7 @@ plot_enhancer_enrichments_by_eid <- function(filename) {
     my_gtable <- ggplotGrob(my_ggplot)
 
     ## Add tissue colors
-    tissue_grob <- ggplotGrob(epigenome_by_tissue() + coord_flip())$grobs[[4]]
+    tissue_grob <- ggplotGrob(epigenome_by_tissue())$grobs[[4]]
     my_gtable <- gtable::gtable_add_rows(my_gtable, unit(2, 'mm'), 0)
     my_gtable <- gtable::gtable_add_grob(my_gtable, tissue_grob, t=1, l=4, r=4)
 
