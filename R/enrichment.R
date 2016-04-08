@@ -20,7 +20,7 @@ enrichment_by_cluster <- function(enrichments, cluster_density) {
 parse_enhancer_enrichments <- function(filename) {
     enrichments <- read.delim(filename, header=FALSE, sep=' ')
     enrichments$pheno <- factor(toupper(sub('^[^-]*-', '', enrichments$V1)))
-    enrichments$pheno <- factor(enrichments$pheno, levels=phenotype_ordering)
+    enrichments$pheno <- factor(enrichments$pheno, levels=rev(phenotype_ordering))
     subset(enrichments, V6 > 0 & V7 > 0)
 }
 
@@ -75,7 +75,7 @@ plot_enhancer_enrichments <- function(filename, cluster_density, plot_log_fold=F
     my_legend <- roadmap_tissue_legend(list(legend.position='bottom'), list(direction='horizontal', nrow=2))
     my_gtable <- gtable::gtable_add_grob(my_gtable, my_legend, t=-1, l=1, r=-1)
 
-    Cairo(type='pdf', file=sub('.in$', '.pdf', filename), width=210, height=270, units='mm')
+    Cairo(type='pdf', file=sub('.in$', '.pdf', filename), width=210, height=80, units='mm')
     grid::grid.draw(my_gtable)
     dev.off()
 }

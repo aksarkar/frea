@@ -63,9 +63,10 @@ density_by_cluster <- function(cluster_density, keep=NULL) {
                                       cluster=rep$Var1, value=rep$value)
                        })
     long_form$cluster <- factor(long_form$cluster, levels=row.names(cluster_density))
+    long_form$tissue <- factor(long_form$tissue, levels=rev(tissue_ordering))
     (heatmap(ggplot(long_form, aes(x=cluster, y=tissue, fill=value))) +
      scale_x_discrete(name='Enhancer module') +
-     scale_y_discrete(name='Tissue', limits=rev(tissue_ordering), drop=TRUE) +
+     scale_y_discrete(name='Tissue', drop=TRUE) +
      scale_fill_gradient(name='Cluster weight', low='white', high='black') +
      theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
            legend.position='right'))
