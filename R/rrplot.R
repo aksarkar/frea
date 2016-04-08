@@ -51,6 +51,7 @@ plot_rrplot <- function(counts_file, xlab, cutoff) {
                                   study=phenotype,
                                   phenotype=toupper(sub("^.*-", "", phenotype)),
                                   y=(count - expected) / max(count))
+    cumulative_deviation$phenotype <- factor(cumulative_deviation$phenotype, levels=phenotype_ordering)
     rank_cutoff <- rrplot_elbow(cumulative_deviation)
     write.table(x=rank_cutoff, file=sub('.txt.gz$', '.ranks', counts_file),
                 quote=FALSE, row.names=FALSE, col.names=FALSE)
