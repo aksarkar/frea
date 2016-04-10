@@ -14,7 +14,8 @@ enrichment_by_cluster <- function(enrichments, cluster_density) {
      theme_nature +
      theme(axis.title.x=element_blank(),
            axis.text.x=element_blank(),
-           legend.position='right'))
+           legend.position='right',
+           plot.margin=unit(c(2, rep(0, 3)), 'mm')))
 }
 
 parse_enhancer_enrichments <- function(filename) {
@@ -59,7 +60,6 @@ plot_enhancer_enrichments <- function(filename, cluster_density, plot_log_fold=F
 
     my_density <- (density_by_cluster(cluster_density, keep=unique(enrichments$cluster)) +
                    theme(legend.position='right',
-                         axis.title.x=element_blank(),
                          axis.text.y=element_text(margin=margin(2))))
     my_gtable <- gtable:::rbind.gtable(ggplotGrob(enrichment_by_cluster(enrichments, cluster_density)),
                                        ggplotGrob(my_density),
@@ -75,7 +75,7 @@ plot_enhancer_enrichments <- function(filename, cluster_density, plot_log_fold=F
     my_legend <- roadmap_tissue_legend(list(legend.position='bottom'), list(direction='horizontal', nrow=2))
     my_gtable <- gtable::gtable_add_grob(my_gtable, my_legend, t=-1, l=1, r=-1)
 
-    Cairo(type='pdf', file=sub('.in$', '.pdf', filename), width=210, height=80, units='mm')
+    Cairo(type='pdf', file=sub('.in$', '.pdf', filename), width=190, height=80, units='mm')
     grid::grid.draw(my_gtable)
     dev.off()
 }
