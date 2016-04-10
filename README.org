@@ -4,7 +4,7 @@
 #+EMAIL: aksarkar@mit.edu
 #+OPTIONS: ':nil *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline author:t c:nil
 #+OPTIONS: creator:comment d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t
-#+OPTIONS: num:t p:nil pri:nil stat:t tags:t tasks:t tex:t timestamp:t toc:t
+#+OPTIONS: num:nil p:nil pri:nil stat:t tags:t tasks:t tex:t timestamp:t toc:t
 #+OPTIONS: todo:t |:t
 #+CREATOR: Emacs 24.5.1 (Org mode 8.2.10)
 #+DESCRIPTION:
@@ -16,22 +16,23 @@
 This repository provides Python and R packages implementing the analyses
 presented in:
 
-Sarkar, Ward, Kellis. "Functional enrichments of disease variants indicate
-hundreds of independent loci"
+Sarkar, Ward, Kellis, "Functional enrichments of disease variants across
+thousands of independent loci in eight diseases"
 
-Importantly, this repository /does not/ contain the scripts used to run the
-analyses on a computing cluster.
+The computational pipeline described in the text (which utilizes these
+packages) is provided in aksarkar/frea-pipeline
 
 * Installation
 
 The Python package requires Python > 3.2
 
 #+BEGIN_SRC sh
-pip install .
+pip install git+git://github.mit.edu:aksarkar/frea.git#egg=Frea
 #+END_SRC
 
-To install the R package
+The R package requires R > 3.1
 
 #+BEGIN_SRC sh
-install.packages(".", repos=NULL)
+library(devtools)
+devtools::install_github('aksarkar/frea')
 #+END_SRC
