@@ -20,6 +20,7 @@ Collate:
     'enrichment.R'
     'motifs.R'
     'qqplot.R'
+    'rank.R'
     'rrplot.R'
     'tf_expression.R'
     'ticks.R'
