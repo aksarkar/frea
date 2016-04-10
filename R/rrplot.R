@@ -1,9 +1,8 @@
-requireNamespace('directlabels')
 requireNamespace('gtable')
 requireNamespace('grid')
 requireNamespace('ggplot2')
 
-#' @include directlabels.R scales.R theme_nature.R
+#' @include scales.R theme_nature.R
 #' @importFrom grid unit
 
 rrplot_elbow <- function(X) {
@@ -16,20 +15,34 @@ rrplot_elbow <- function(X) {
     rank_cutoff <- ddply(inflections, .(study, phenotype), summarize, xintercept=max(V1, na.rm=TRUE))
 }
 
+rrplot_highlights <- function() {
+    data(roadmap_sample_info)
+    t_cell <- subset(roadmap_sample_info, group_name == 'Blood & T-cell')$EID
+    b_cell <- subset(roadmap_sample_info, group_name == 'HSC & B-cell')$EID
+    brain <- subset(roadmap_sample_info, group_name == 'Brain')$EID
+    psych <- unlist(lapply(list(t_cell, brain), as.character))
+    list('CD' = t_cell,
+         'RA' = t_cell,
+         'T1D' = t_cell,
+         'AD' = b_cell,
+         'BIP' = psych,
+         'SCZ' = psych,
+         'CAD' = 'E075',
+         'T2D' = c('E087', 'E109'))
+}
+
 rrplot <- function(X, total_cutoff, axis_labels, rank_cutoff) {
     X <- subset(X, total <= total_cutoff)
-    direct_labels <- geom_dl(ggplot2::aes(label=eid),
-                             method=list(cex=7/16,
-                                         last.points,
-                                         calc.boxes,
-                                         dl.trans(x = x + .1),
-                                         top(10),
-                                         'bumpdown'))
+    highlights <- rrplot_highlights()
+    X <- ddply(X, .(phenotype),
+               function(x) {
+                   x$alpha = with(x, ifelse(eid %in% unlist(highlights[[phenotype[1]]]), 1, 0.9))
+                   x
+               })
     (ggplot(X, aes(x=total, y=y, color=factor(eid))) +
-     geom_line(size=I(.35 / ggplot2:::.pt)) +
+     geom_line(aes(alpha=alpha), size=I(.35 / ggplot2:::.pt)) +
      geom_hline(yintercept=0, color='black', size=I(.5 / ggplot2:::.pt)) +
      geom_vline(data=rank_cutoff, aes(xintercept=xintercept), color='red', size=I(.5 / ggplot2:::.pt)) +
-     direct_labels +
      scale_x_continuous(labels=comma, limits=c(0, total_cutoff),
                         breaks=seq(0, total_cutoff, total_cutoff / 4),
                         expand=c(0, 0)) +
@@ -59,9 +72,6 @@ plot_rrplot <- function(counts_file, xlab, cutoff) {
     my_gtable <- ggplotGrob(rrplot(cumulative_deviation, cutoff,
                                    labs(x=xlab, y='Cumulative deviation'),
                                    rank_cutoff))
-
-    ## Don't clip direct labels
-    my_gtable$layout$clip[grepl('panel', my_gtable$layout$name)] <- 'off'
 
     ## Add the legend
     my_gtable <- gtable::gtable_add_rows(my_gtable, unit(1, 'lines'))
