@@ -127,3 +127,7 @@ def merge(*iterables, key):
         key_value, order, value,  next = h[0]
         yield value
         yield from next.__self__
+
+def kwise(iterable, k):
+    it = iter(iterable)
+    return zip(*[it for _ in range(k)])
