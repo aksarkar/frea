@@ -28,7 +28,8 @@ def output(bed_entry, ref_entry, key=operator.itemgetter(0, -1), output_fn=outpu
 def lookup(parsed_input, output_fn=output,
            input_sort_key=operator.itemgetter(0),
            input_join_key=operator.itemgetter(1),
-           ref_join_key=operator.itemgetter(1)):
+           ref_join_key=operator.itemgetter(1),
+           snps_only=True):
     """Lookup input SNPs in 1KG
 
     parsed_input - iterable of parsed entries
@@ -41,6 +42,9 @@ def lookup(parsed_input, output_fn=output,
         with gzip.open('/broad/compbio/aksarkar/data/1kg/ALL.{}.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.legend.gz'.format(k), 'rt') as f:
             next(f)
             ref = parse(legend_format, (line.split() for line in f))
-            keep = (x for x in ref if x[-1] == 'SNP')
+            if snps_only:
+                keep = (x for x in ref if x[-1] == 'SNP')
+            else:
+                keep = ref
             for pair in join(g, keep, input_join_key, ref_join_key):
                 output_fn(*pair)
