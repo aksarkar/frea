@@ -8,8 +8,8 @@ requireNamespace('gtable')
 NULL
 
 enrichment_by_cluster <- function(enrichments, cluster_density) {
-    (heatmap(ggplot(enrichments, aes(x=cluster, y=pheno, fill=(V5 - V6)/ sqrt(V7)))) +
-     scale_heatmap(name='z-score') +
+    (heatmap(ggplot(enrichments, aes(x=cluster, y=pheno, fill=score))) +
+     scale_heatmap(name='Log-fold enrichment') +
      labs(x='Enhancer module', y='Phenotype') +
      theme_nature +
      theme(axis.title.x=element_blank(),
@@ -57,6 +57,12 @@ plot_enhancer_enrichments_by_eid <- function(filename) {
 plot_enhancer_enrichments <- function(filename, cluster_density, plot_log_fold=FALSE, flip=FALSE) {
     enrichments <- parse_enhancer_enrichments(filename)
     enrichments$cluster <- factor(enrichments$V3, levels=row.names(cluster_density))
+    if (plot_log_fold) {
+        enrichments <- transform(enrichments, score=log10(V5) - log10(V6))
+    }
+    else {
+        enrichments <- transform(enrichments, score=(V5 - V6) / sqrt(V7))
+    }
 
     my_density <- (density_by_cluster(cluster_density, keep=unique(enrichments$cluster)) +
                    theme(legend.position='right',
