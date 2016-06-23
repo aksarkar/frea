@@ -1,3 +1,13 @@
+"""Process summary statistics from Bradfield et al., PLoS Genet 2011
+
+Usage: python -m frea.summary.bradfield SUMMARY_FILE SNPTEST_DIR
+
+The key task is to use odds ratios computed using SNPTEST in WTCCC to assign
+directions to z-scores computed from the provided p-values.
+
+Author: Abhishek Sarkar <aksarkar@mit.edu>
+
+"""
 import itertools
 import gzip
 import math

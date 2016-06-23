@@ -1,5 +1,7 @@
 """Estimate robustness of GWAS p-value ranks to sample size.
 
+Usage: python -m frea.rank SUMMARY_FILE
+
 Compute correlation between held-out cohorts and the remaining in large
 meta-analyses where per-cohort summary statistics are available.
 
