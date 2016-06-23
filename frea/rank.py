@@ -85,7 +85,7 @@ total_samples = sum(sum(cohort) for cohort in samples)
 weights = [math.sqrt(sum(cohort) / total_samples) for cohort in samples]
 total_weight = sum(weights)
 
-with gzip.open("/broad/compbio/aksarkar/data/gwas-summary-stats/ra/ra.txt.gz", "rt") as f:
+with gzip.open(sys.argv[1], "rt") as f:
     data = (line.split() for line in f)
     next(data)  # skip header
     filter_chr6 = (row for row in data if row[1] != '6')

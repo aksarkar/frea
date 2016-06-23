@@ -27,16 +27,16 @@ def snptest(file):
         for row in data:
             yield row[1], int(row[3]), row[4], row[5], float(row[34])
 
-def wtccc(chromosome):
+def wtccc(chromosome, snptest_dir):
     patt = re.compile(r'{}\..*\.txt\.gz'.format(chromosome))
-    infiles = sorted(os.path.join(root, f) for root, _, files in os.walk('/broad/compbio/aksarkar/projects/gwas/wtccc1/EC21/results/snptest')
-               for f in files if patt.match(f))
+    infiles = sorted(os.path.join(root, f) for root, _, files in os.walk(snptest_dir)
+                     for f in files if patt.match(f))
     for f in infiles:
         for row in snptest(f):
             yield row
 
-def zscores(chromosome, snps):
-    for pair in join(snps, wtccc(chromosome), key1=operator.itemgetter(2, 0), key2=operator.itemgetter(1, 0)):
+def zscores(chromosome, snps, snptest_dir):
+    for pair in join(snps, wtccc(chromosome, snptest_dir), key1=operator.itemgetter(2, 0), key2=operator.itemgetter(1, 0)):
         name, _, pos, p = pair[0]
         _, _, a0, a1, odds = pair[1]
         z = math.sqrt(scipy.stats.chi2(1).isf(p))
@@ -45,10 +45,12 @@ def zscores(chromosome, snps):
         yield name, pos, a0, a1, z
 
 if __name__ == '__main__':
-    with gzip.open('/broad/compbio/aksarkar/data/gwas-summary-stats/t1d_bradfield_10.1371_journal.pgen.1002293/hg19_gwas_t1d_bradfield_4_18_0.gz', 'rt') as f:
+    summary_file = sys.argv[1]
+    snptest_dir = sys.argv[2]
+    with gzip.open(summary_file, 'rt') as f:
         summary = sorted(bradfield(f), key=operator.itemgetter(1, 2))
         for k, g in itertools.groupby(summary, key=operator.itemgetter(1)):
             with open('{}.txt'.format(k), 'w') as outfile:
                 print('id', 'pos', 'ref', 'alt', 'z', file=outfile)
-                for row in zscores(k, g):
+                for row in zscores(k, g, snptest_dir):
                     print(*row, file=outfile)

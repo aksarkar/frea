@@ -6,12 +6,6 @@ import scipy.stats
 from .lookup import *
 from ..formats import *
 
-def process_sim():
-    """Process plink linear regression output"""
-    fmt = [lambda x: "chr{}".format(x), str, int, str, str, int, float, float, float]
-    filter_garbage = (line for line in sys.stdin if not line.startswith(" CHR"))
-    lookup(parse(filter_garbage, fmt), output, input_join_key=operator.itemgetter(2))
-
 def ucsc_to_impg():
     """Convert lifted over z-scores to ImpG input format"""
     data = (line.split('\t') for line in sys.stdin)
@@ -28,7 +22,7 @@ def _fix_names(fmt, output_fn, **kwargs):
     for k, g in itertools.groupby(parsed, key=operator.itemgetter(0)):
         lookup(g, output_fn, **kwargs)
 
-def fix_uscs_bed_names():
+def fix_ucsc_bed_names():
     """Fix the names of a BED file"""
     _fix_names(ucsc_bed_format, output_ucsc_bed)
 
@@ -43,34 +37,31 @@ def _reformat(filename, key):
     for row in summary_stats(filename, key):
         print(row[0], row[1], row[1] + 1, row[2], row[3], sep='\t')
 
-def diagram():
+def diagram(filename):
     def key(row):
         return chromosome(row[1]), int(row[2]), int(row[2]) + 1, row[0], float(row[5]), row[3], row[4]
-    for row in summary_stats('/broad/compbio/aksarkar/data/gwas-summary-stats/diagram/DIAGRAMv3.2012DEC17.txt.gz', key):
+    for row in summary_stats(filename, key):
+        # Use the given end for indels
         print(*row)
 
-def cardiogram():
+def cardiogram(filename):
     def key(row):
         chromosome, pos = row[1].split(':')
         return chromosome, int(pos), row[0], zscore(float(row[5]), math.exp(float(row[7])))
-    _reformat('/broad/compbio/aksarkar/data/gwas-summary-stats/cardiogram/cardiogram_gwas_results/CARDIoGRAM_GWAS_RESULTS.txt.gz',
-            key)
+    _reformat(filename, key)
 
-def ra():
-    _reformat('/broad/compbio/aksarkar/data/gwas-summary-stats/ra/ra.txt.gz',
-            lambda x: (chromosome(x[0]), int(x[2]), x[1], x[-4]))
+def ra(filename):
+    _reformat(filename, lambda x: (chromosome(x[0]), int(x[2]), x[1], x[-4]))
 
-def iibdgc():
-    _lookup('/broad/compbio/aksarkar/data/gwas-summary-stats/iibdgc/iibdgc-trans-ancestry-summary-stats/EUR.CD.gwas.assoc.gz',
-            lambda x: (chromosome(x[0]), int(x[2]), float(x[10])),
-            operator.itemgetter(0, 1))
+def iibdgc(filename, ref_dir):
+    def key(row):
+        return chromosome(row[0]), int(row[2]), float(row[10])
+    lookup(sorted(summary_stats(filename, key), key=operator.itemgetter(0, 1)), ref_dir=ref_dir)
 
-def bip():
-    _reformat('/broad/compbio/aksarkar/data/gwas-summary-stats/pgc/pgc.bip.2012-04/pgc.bip.full.2012-04.txt.gz',
-            lambda x: (chromosome(x[1]), int(x[2]), x[0], zscore(float(x[7]), float(x[5]))))
+def bip(filename):
+    _reformat(filename, lambda x: (chromosome(x[1]), int(x[2]), x[0], zscore(float(x[7]), float(x[5]))))
 
-def scz():
+def scz(filename, ref_dir):
     def key(row):
         return row[0], int(row[4]), float(row[8])
-    lookup(sorted(summary_stats('/broad/compbio/aksarkar/data/gwas-summary-stats/pgc/pgc.szc2.txt.gz', key),
-                  key=operator.itemgetter(0, 1)))
+    lookup(sorted(summary_stats(filename, key), key=operator.itemgetter(0, 1)), ref_dir=ref_dir)

@@ -7,6 +7,7 @@ import functools
 import gzip
 import itertools
 import operator
+import os.path
 import math
 import re
 import sys
@@ -29,6 +30,7 @@ def lookup(parsed_input, output_fn=output,
            input_sort_key=operator.itemgetter(0),
            input_join_key=operator.itemgetter(1),
            ref_join_key=operator.itemgetter(1),
+           ref_dir='.',
            snps_only=True):
     """Lookup input SNPs in 1KG
 
@@ -39,7 +41,7 @@ def lookup(parsed_input, output_fn=output,
     ref_join_key - key to match in 1KG
     """
     for k, g in itertools.groupby(parsed_input, key=input_sort_key):
-        with gzip.open('/broad/compbio/aksarkar/data/1kg/ALL.{}.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.legend.gz'.format(k), 'rt') as f:
+        with gzip.open(os.path.join(ref_dir, 'ALL.{}.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.legend.gz'.format(k)), 'rt') as f:
             next(f)
             ref = parse(legend_format, (line.split() for line in f))
             if snps_only:
