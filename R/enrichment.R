@@ -85,3 +85,24 @@ plot_enhancer_enrichments <- function(filename, cluster_density, plot_log_fold=F
     grid::grid.draw(my_gtable)
     dev.off()
 }
+
+plot_diagnostic <- function(filename, cluster_density) {
+    enrichments <- parse_enhancer_enrichments(filename)
+    enrichments$sig <- enrichments$V8 < 0.005
+    enrichments$cluster <- factor(enrichments$V3, levels=row.names(cluster_density))
+    p <- (ggplot(enrichments, aes(x=cluster, color=cluster, alpha=sig)) +
+          geom_point(aes(y=V5), size=0.1) +
+          geom_linerange(aes(ymin=V6-sqrt(V7), ymax=V6+sqrt(V7)), size=0.25) +
+          scale_x_discrete(drop=FALSE) +
+          scale_alpha_manual(values=c('TRUE'=1, 'FALSE'=0.25)) +
+          scale_color_manual(values=color_by_cluster_top(cluster_density)) +
+          coord_flip() +
+          labs(x='Overlaps', y='Cluster') +
+          facet_wrap(~ pheno, nrow=1) +
+          theme_nature +
+          theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+                panel.grid.major=element_line(size=0.1, color='gray80')))
+    Cairo(type='pdf', file=sub('.in$', '-diagnostic.pdf', filename), width=190, height=270, units='mm')
+    print(p)
+    dev.off()
+}
