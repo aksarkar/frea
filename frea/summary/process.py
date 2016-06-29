@@ -6,7 +6,7 @@ import scipy.stats
 from .lookup import *
 from ..formats import *
 
-def ucsc_to_impg():
+def ucsc_to_impg(ref_dir='.'):
     """Convert lifted over z-scores to ImpG input format"""
     data = (line.split('\t') for line in sys.stdin)
     parsed = parse(ucsc_bed_format, data)
@@ -14,7 +14,7 @@ def ucsc_to_impg():
         with open('{}.txt'.format(k[3:]), 'w') as f:
             print('id', 'pos', 'ref', 'alt', 'z', file=f)
             output_ = functools.partial(output, output_fn=output_impg_zscores, score_fn=float, file=f)
-            lookup(g, output_fn=output_)
+            lookup(g, output_fn=output_, ref_dir=ref_dir)
 
 def _fix_names(fmt, output_fn, **kwargs):
     data = (line.split('\t') for line in sys.stdin)
@@ -22,16 +22,16 @@ def _fix_names(fmt, output_fn, **kwargs):
     for k, g in itertools.groupby(parsed, key=operator.itemgetter(0)):
         lookup(g, output_fn, **kwargs)
 
-def fix_ucsc_bed_names():
+def fix_ucsc_bed_names(**kwargs):
     """Fix the names of a BED file"""
-    _fix_names(ucsc_bed_format, output_ucsc_bed)
+    _fix_names(ucsc_bed_format, output_ucsc_bed, **kwargs)
 
-def fix_plink_bim_names():
+def fix_plink_bim_names(**kwargs):
     def output(bim, ref):
         chr_, affy_name = bim[:2]
         name, pos, a0, a1, _ = ref
         print(affy_name, get_pouyak_name(chr_, name, pos, a0, a1))
-    _fix_names(plink_format, output, input_join_key=operator.itemgetter(3))
+    _fix_names(plink_format, output, input_join_key=operator.itemgetter(3), **kwargs)
 
 def _reformat(filename, key):
     for row in summary_stats(filename, key):
