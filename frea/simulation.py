@@ -7,56 +7,42 @@ import collections
 import itertools
 import gzip
 import random
-import pdb
 import sys
 
 import numpy
 
-def load_annotations(file):
-    data = (line.split() for line in f)
-    result = collections.defaultdict(list)
-    for row in data:
-        result[row[-1]].append(row[:-1])
-    return result
+from .formats import oxstats, oxstats_gen_to_dosage
 
-def load_dosages(file):
-    data = itertools.dropwhile(lambda x: x.startswith('#'), file)
-    for line in data:
-        yield line.split()
+def sample_uniform(data, p_causal=0.5, window_size=1e6, n_per_window=1):
+    for _, g in itertools.groupby(data, key=lambda x: (x[0], int(int(x[2]) / window_size))):
+        if random.random() < p_causal:
+            w = list(g)
+            for snp in random.sample(w, n_per_window):
+                yield numpy.array(oxstats_gen_to_dosage(snp[5:]))
 
-def simulate(samples, dosages, annotations, causal_proportion=None, pve=None,
-             num_causal=1000):
-    if causal_proportion is None and pve is None:
-        raise ValueError('At least one of causal_proportion and pve must be set')
-    if causal_proportion is None:
-        num_causal_per_annot = {k: num_causal // len(pve) for k in pve}
-    else:
-        num_causal_per_annot = {k: int(num_causal * v) for k, v in
-                                causal_proportion}
-    if pve is None:
-        pve = {k: .5 / len(num_causal_per_annot) for k in num_causal_per_annot}
-    N = numpy.random.normal
-    causal_vars = {k: random.sample(annotations[k], num_causal_per_annot[k])
-                   for k in num_causal_per_annot}
-    causal_effects = {tuple(snp): N(scale=numpy.sqrt(pve[k] / num_causal_per_annot[k]))
-                      for k in causal_vars for snp in causal_vars[k]}
-    genetic_values = numpy.zeros(len(samples))
-    for row in dosages:
-        snp, dose = row[:5], row[9:]
-        snp = tuple(snp)
-        if snp in causal_effects:
-            genetic_values += numpy.array(dose, dtype='float') * causal_effects[snp]
-    noise_scale = numpy.sqrt(numpy.var(genetic_values) * (1 / sum(pve.values()) - 1))
-    return genetic_values + N(scale=noise_scale, size=len(samples))
+def simulate_null(samples, probs, **kwargs):
+    """Simulate phenotypes under the null (no enrichment)
+
+    Under the null, variants are sampled uniformly at random, independent of
+    annotation. We make a stronger assumption that causal variants are in
+    approximate linkage equilibrium, and sample causal variants uniformly
+    within 1MB windows.
+
+    """
+    y = numpy.zeros(len(samples) - 2)
+    for dose in sample_uniform(probs, **kwargs):
+        dose -= dose.mean()
+        y += dose * numpy.random.normal()
+    y -= y.mean()
+    y /= y.std()
+    print(' '.join(samples[0]), 'null_pheno')
+    print(' '.join(samples[1]), 'C')
+    for i, y_i in enumerate(y):
+        print(' '.join(samples[i + 2]), y_i)
 
 if __name__ == '__main__':
     random.seed(sys.argv[1])
-    with open(sys.argv[2]) as f:
-        samples = [line.split() for line in f][2:]
-    with gzip.open(sys.argv[3], 'rt') as f:
-        annotations = load_annotations(f)
-    with gzip.open(sys.argv[4], 'rt') as f:
-        dosages = load_dosages(f)
-        phenotype = simulate(samples, dosages, annotations, pve={'77': .4, '66': .1})
-        for p in phenotype:
-            print(p)
+    if sys.argv[2] == '-':
+        sys.argv[2] = None
+    with oxstats(sys.argv[3], sys.argv[2]) as (samples, probs):
+        simulate_null(samples, probs)

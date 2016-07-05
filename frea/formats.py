@@ -3,11 +3,14 @@
 Author: Abhishek Sarkar <aksarkar@mit.edu>
 
 """
+import contextlib
 import gzip
 import math
 import sys
 
 import scipy.stats
+
+from .algorithms import kwise
 
 ucsc_bed_format = [str, int, int, str, float]
 impg_format = [str, int, str, str, float, float]
@@ -82,3 +85,31 @@ def summary_stats(filename, input_key, skip_header=True):
             parsed = input_key(row)
             if parsed[0] in autosomes:
                 yield parsed
+
+def oxstats_gen_to_dosage(probs):
+    probs = [float(p) for p in probs]
+    return [2 * c + b for (a, b, c) in kwise(probs, 3)]
+
+def parse_oxstats(data):
+    entries = (line.split() for line in data)
+    for row in entries:
+        row[2] = int(row[2])
+        yield row
+
+@contextlib.contextmanager
+def oxstats(sample_file, gen_file=None):
+    """Return the list of samples and a generator which yields genotype
+probabilities.
+
+    By default, reads from stdin. Expects data in OXSTATS gen format (not bgen)
+
+    This implementation does not allow random access to avoid memory issues.
+
+    """
+    with open(sample_file) as f:
+        samples = [line.split() for line in f]
+    if gen_file is None:
+        yield samples, parse_oxstats(sys.stdin)
+    else:
+        with gzip.open(gen_file, 'rt') as f:
+            yield samples, parse_oxstats(f)

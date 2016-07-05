@@ -18,7 +18,7 @@ import signal
 import sys
 
 from .algorithms import join, kwise
-from .formats import chromosome, get_pouyak_name
+from .formats import chromosome, get_pouyak_name, parse_oxstats
 
 def _merge_oxstats(seq1, seq2):
     for a, b in join(seq1, seq2, key1=operator.itemgetter(2)):
@@ -27,12 +27,6 @@ def _merge_oxstats(seq1, seq2):
 
 def merge_oxstats(iterables):
     for row in functools.reduce(_merge_oxstats, iterables):
-        yield row
-
-def parse_oxstats(data):
-    entries = (line.split() for line in data)
-    for row in entries:
-        row[2] = int(row[2])
         yield row
 
 def info(p):
