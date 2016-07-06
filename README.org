@@ -20,19 +20,87 @@ Sarkar, Ward, Kellis, "Functional enrichments of disease variants across
 thousands of independent loci in eight diseases"
 
 The computational pipeline described in the text (which utilizes these
-packages) is provided in aksarkar/frea-pipeline
+packages) is available from http://www.github.com/aksarkar/frea-pipeline
 
 * Installation
 
-The Python package requires Python > 3.2
-
 #+BEGIN_SRC sh
-pip install git+git://github.mit.edu:aksarkar/frea.git#egg=Frea
-#+END_SRC
-
-The R package requires R > 3.1
-
-#+BEGIN_SRC sh
-library(devtools)
+pip install git+git://github.com:aksarkar/frea.git#egg=Frea
+R <<EOF
 devtools::install_github('aksarkar/frea')
+EOF
 #+END_SRC
+
+  The Python package requires:
+
+  - Python > 3.2
+  - numpy
+  - scipy
+
+  The R package requires:
+
+  - R > 3.1
+  - Cairo
+  - devtools
+  - ggplot2
+  - gtable
+  - plyr
+  - reshape2
+  - scales
+
+* Commentary
+
+The design of the packages is based on several ideas, which are dependent on
+the characteristics of the compute environment they were developed in (Univa
+Grid Engine, relatively strict memory limits, but many compute nodes):
+
+1. Use independent Python processes to distribute work in massively parallel
+   fashion across compute nodes (using mechanisms outside of Python such as GNU
+   parallel)
+2. Use streaming algorithms wherever possible, building as few intermediate
+   data structures as needed
+3. Invoke modules as scripts (python -m) for entry points wherever possible
+4. Use R to produce visualizations
+
+** Processing summary statistics
+
+The fundamental computations here are:
+
+1. Coerce the data into a standardized (internal) format
+2. Convert the internal format to UCSC BED for use downstream
+3. Lift over and impute UCSC BED (as needed)
+
+** Enhancer enrichments
+
+The fundamental computations here are:
+
+1. Motivate the method by estimating rank-based correlations between replicate
+   summary statistics
+2. Prune summary statistics according to linkage disequilibrium
+3. Estimate the heuristic p-value cutoff for taking forward in the analysis
+4. Calculate permutation-based significance of enrichment for every annotation
+5. Draw and annotate the plots
+
+** Pathway enrichments
+
+The fundamental computations here is pruning enriched GO terms according to the
+Gene Ontology. We parse the Open Biomedical Ontology format file to build an
+adjacency list representing the graph of GO relationships. The algorithm is
+straightforward: perform DFS on the ontology subgraph induced by the enriched
+terms, keeping the deepest nodes found (the fringe) at every point.
+
+The algorithm is implemented in two coroutines: the DFS coroutine yields events
+(either starting from an unexplored node or moving along an edge) and the
+current node. If we start from an unexplored node, we add it to the fringe; if
+we move along an edge, we remove the node from the fringe (if it was
+present). At the end of the algorithm, the fringe contains nodes which were
+visited only once in the traversal and therefore the deepest (most specific)
+enriched GO terms.
+
+** Motif enrichments
+
+The fundamental computations here are:
+
+1. Counting motif overlaps, possibly grouping by PWM/factor group/PWM cluster
+2. Compute significance of motif enrichments based on overlap counts
+3. Draw and annotate heatmaps
