@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+import sys
+
+from frea.impg import *
+
+oxstats_haps_to_impg_haps(*sys.argv[1:3])
