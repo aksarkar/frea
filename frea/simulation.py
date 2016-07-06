@@ -35,8 +35,8 @@ def simulate_null(samples, probs, **kwargs):
         y += dose * numpy.random.normal()
     y -= y.mean()
     y /= y.std()
-    print(' '.join(samples[0]), 'null_pheno')
-    print(' '.join(samples[1]), 'C')
+    print(' '.join(samples[0]), 'pheno')
+    print(' '.join(samples[1]), 'P')
     for i, y_i in enumerate(y):
         print(' '.join(samples[i + 2]), y_i)
 
