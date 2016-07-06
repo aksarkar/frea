@@ -36,17 +36,21 @@ def join(seq1, seq2, key1, key2=None):
         else:
             k2, g2 = next(seq2_buckets)
 
-def hashjoin(seq1, seq2, key1=operator.itemgetter(3), key2=operator.itemgetter(1)):
+def hashjoin(seq1, seq2, key1, key2=None):
     """Yield pairs of elements s1, s2 in seq1, seq2 such that key1(s1) == key2(s2)
 
     This implementation performs a hash-join of two sequences. It requires that
     both keys be hashable. It also always builds a hash on seq1 since it may
     not be possible to identify which sequence is smaller.
 
+    By default, the sequences are joined on the same key.
+
     seq1, seq2 - iterables
     key1, key2 - join key for each sequence
 
     """
+    if key2 is None:
+        key2 = key1
     lookup = {key1(s): s for s in seq1}
     for s in seq2:
         if key2(s) in lookup:
