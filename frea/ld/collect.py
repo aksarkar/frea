@@ -4,6 +4,7 @@ Author: Abhishek Sarkar <aksarkar@mit.edu>
 
 """
 import gzip
+import operator
 import sys
 
 from ..algorithms import hashjoin
