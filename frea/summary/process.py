@@ -6,6 +6,29 @@ import scipy.stats
 from .lookup import *
 from ..formats import *
 
+def oxstats_snptest_to_ucsc_bed(filename, chr_, min_info=0.8):
+    """Convert SNPTEST output to BED format
+
+    Assume SNPTEST was run on 1KG-imputed genotypes and write out BED entries
+    with -log10(p) as the score.
+
+    """
+    with gzip.open(filename, 'rt') as f:
+        drop_comments = (line for line in f if not line.startswith('#'))
+        data = (line.split() for line in drop_comments)
+        header = {x: i for i, x in enumerate(next(data))}
+        drop_missing = (row for row in data if row[header['frequentist_add_pvalue']] != 'NA')
+        chr_ = chromosome(int(chr_))
+        for row in drop_missing:
+            pos = int(row[header['position']])
+            rsid = row[header['rsid']]
+            a0 = row[header['alleleA']]
+            a1 = row[header['alleleB']]
+            logp = -math.log10(float(row[header['frequentist_add_pvalue']]))
+            print(chr_, pos, pos + len(a0),
+                  get_pouyak_name(chr_, rsid, pos, a0, a1),
+                  logp, sep='\t')
+
 def ucsc_to_impg(ref_dir='.'):
     """Convert lifted over z-scores to ImpG input format"""
     data = (line.split('\t') for line in sys.stdin)
