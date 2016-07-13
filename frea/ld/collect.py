@@ -20,6 +20,6 @@ def _chromosome(i):
             yield chr_, int(start), int(end), name, score
 
 if __name__ == '__main__':
-    for i in range(1, 23):
+    for c in sorted([str(x) for x in range(1, 23)]):
         for row in sorted(_chromosome(i)):
             print(*row, sep='\t')
