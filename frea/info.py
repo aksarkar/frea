@@ -53,7 +53,7 @@ def info(p):
 
 if __name__ == '__main__':
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    chrom = chromosome(int(re.search(r'(\d+)', sys.argv[1]).group()))
+    chrom = chromosome(int(re.search(r'_(\d+)', sys.argv[1]).group(1)))
     with contextlib.ExitStack() as stack:
         files = [stack.enter_context(gzip.open(f, 'rt')) for f in sys.argv[1:]]
         parsed = [parse_oxstats(f) for f in files]
