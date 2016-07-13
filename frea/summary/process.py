@@ -17,14 +17,18 @@ def ucsc_to_impg(ref_dir='.'):
             lookup(g, output_fn=output_, ref_dir=ref_dir)
 
 def _fix_names(fmt, output_fn, **kwargs):
-    data = (line.split('\t') for line in sys.stdin)
+    data = (line.strip().split('\t') for line in sys.stdin)
     parsed = parse(fmt, data)
     for k, g in itertools.groupby(parsed, key=operator.itemgetter(0)):
         lookup(g, output_fn, **kwargs)
 
 def fix_ucsc_bed_names(**kwargs):
     """Fix the names of a BED file"""
-    _fix_names(ucsc_bed_format, output_ucsc_bed, **kwargs)
+    if 'fmt' not in kwargs:
+        kwargs['fmt'] = ucsc_bed_format
+    if 'output_fn' not in kwargs:
+        kwargs['output_fn'] = functools.partial(output, score_fn=str)
+    _fix_names(**kwargs)
 
 def fix_plink_bim_names(**kwargs):
     def output(bim, ref):
@@ -52,6 +56,9 @@ def cardiogram(filename):
 
 def ra(filename):
     _reformat(filename, lambda x: (chromosome(x[0]), int(x[2]), x[1], x[-4]))
+
+def ra_subcohorts(filename):
+    _reformat(filename, lambda x: (chromosome(x[0]), int(x[2]), x[1], '|'.join(x[11:17] + x[-4:-3])))
 
 def iibdgc(filename, ref_dir):
     def key(row):
