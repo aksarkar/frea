@@ -5,6 +5,7 @@ Author: Abhishek Sarkar <aksarkar@mit.edu>
 """
 import contextlib
 import gzip
+import itertools
 import math
 import sys
 
@@ -113,3 +114,44 @@ probabilities.
     else:
         with gzip.open(gen_file, 'rt') as f:
             yield samples, parse_oxstats(f)
+
+def parse_oxstats_haps(samples, legend_iterable, haps_iterable, group='EUR',
+                       snps_only=True, min_maf=0.01):
+    """Return OXSTATS haplotypes which meet the specific criteria
+
+    samples - list of (sample, population, group, sex) records
+    legend_iterable - file-like object
+    haps_iterable - file-like object
+    group - sample group
+    snps_only - only keep SNPs
+    min_maf - only keep variants with MAF above threshold
+
+    """
+    keep = [x[2] == group for x in samples]
+    legend_entries = (line.split() for line in legend_iterable)
+    header = next(legend_entries)
+    maf_col = header.index('{}.maf'.format(group.lower()))
+    haps_entries = (line.split() for line in haps_iterable)
+    for l, h in zip(legend_entries, haps_entries):
+        if (not snps_only or l[4] == 'SNP') and float(l[maf_col]) > min_maf:
+            filtered_haps = [pair for pair, keep_ in zip(kwise(h, 2), keep) if keep_]
+            ignore_homologs = itertools.chain.from_iterable(filtered_haps)
+            parsed_haps = [int(x) for x in ignore_homologs]
+            yield l[:4], parsed_haps
+
+@contextlib.contextmanager
+def oxstats_haplotypes(sample_file, legend_file, haps_file, **kwargs):
+    """Return the list of samples and a generator which yields haplotypes.
+
+    By default, reads from stdin. Expects data in OXSTATS haplotypes
+
+    This implementation does not allow random access to avoid memory issues.
+
+    kwargs - keyword arguments to parse_oxstats_haps
+
+    """
+    with open(sample_file) as f:
+        next(f)
+        samples = [line.split() for line in f]
+    with gzip.open(legend_file, 'rt') as f, gzip.open(haps_file, 'rt') as g:
+        yield parse_oxstats_haps(samples, f, g)
