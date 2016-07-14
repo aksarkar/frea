@@ -114,7 +114,7 @@ def permutation_test(overlap_bins, nonoverlap_bins, thresh, ntrials):
     """
     X = num_top_snps(I(overlap_bins.values()), thresh)
     if X == 0:
-        return 0, 0, 0, 0, 1, 0, 0
+        return thresh, 0, 0, 0, 1, 0, 0
     overlap_counts = {k: len(overlap_bins[k]) for k in overlap_bins}
     Y = [num_top_snps(match(overlap_counts, nonoverlap_bins), thresh) for _ in range(ntrials)]
     mean, variance = moments(Y)
