@@ -6,6 +6,7 @@ Author: Abhishek Sarkar <aksarkar@mit.edu>
 import collections
 import itertools
 import gzip
+import os.path
 import random
 import sys
 
@@ -14,78 +15,68 @@ import numpy.random as R
 
 from .formats import *
 
-def sample_chromosome_mosaic(n, sample_file, legend_file, haps_file, p_causal=0.5,
-                             window_size=1e6, n_per_window=1, **kwargs):
-    """Sample pointers to ancestors at fixed recombination points
-
-    n - number of descendant samples
-    sample_file - reference sample information
-    legend_file - reference variant information
-    haps_file - reference haplotypes
-    p_causal - probability each window contains a causal variant
-    window_size - window between fixed recombination points (and thinning causal variants)
-    n_per_window - number of causal variants per window
-    **kwargs - arguments to frea.formats.oxstats_haplotypes
-
-    """
-    with oxstats_haplotypes(sample_file, legend_file, haps_file, **kwargs) as data:
-        for _, g in itertools.groupby(data, key=lambda x: int(int(x[0][1]) / window_size)):
-            window = list(g)
-            k = len(window[0][1])
-            if random.random() < p_causal:
-                w = [l[:5] for l, _ in window]
-                causal = random.sample(w, n_per_window)
-                effects = R.normal(size=len(n_per_window))
-            else:
-                causal = []
-                effects = []
-            yield R.randint(0, k, size=2 * n), causal, effects
-
-def sample_mosaic(n, ref_dir='.', **kwargs):
-    """Yield a mosaic of reference haplotypes.
-
-    n - number of descendent samples
-    kwargs - keyword arguments to parse_oxstats_haplotypes
-
-    """
+def windows(key, ref_dir='.', p_causal=0.5, window_size=1e6, n_per_window=1, **kwargs):
     J = os.path.join
-    for chr_ in [str(i) for i in range(23)]:
+    for chr_ in [str(i) for i in range(1, 23)]:
         sample_file = J(ref_dir, 'ALL.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.sample')
         legend_file = J(ref_dir, 'ALL.chr{}.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.legend.gz'.format(chr_))
         haps_file = J(ref_dir, 'ALL.chr{}.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.haplotypes.gz'.format(chr_))
-        yield from sample_chromosome_mosaic(sample_file, legend_file, haps_file, **kwargs)
+        with oxstats_haplotypes(sample_file, legend_file, haps_file, **kwargs) as data:
+            for _, g in itertools.groupby(data, key=key):
+                yield g
 
-def reconstruct_chromosome_mosaic(ancestors, sample_file, legend_file,
-                                  haps_file, window_size=1e6, **kwargs):
-    """Reconstruct genotypes from recorded recombinations
+def sample_gaussian(n, pve=0.5, ref_dir='.', p_causal=0.5, window_size=1e6,
+                    n_per_window=1, **kwargs):
+    """Generate Gaussian phenotypes.
 
-    ancestors - pointer to haplotypes to copy between recombinations
-    sample_file - reference sample information
-    legend_file - reference variant information
-    haps_file - reference haplotypes
-    window_size - window between recombination points
-    kwargs - keyword arguments to parse_oxstats_haplotypes
+    This implementation recombines reference haplotypes to generate arbitrary
+    size samples. We make two passes through the reference data:
 
-    """
-    with oxstats_haplotypes(sample_file, legend_file, haps_file, **kwargs) as data:
-        for _, g in itertools.groupby(data, key=lambda x: int(int(x[0][1]) / window_size)):
-            for _, h in g:
-                haplotypes = [h[i] for i in ancestors]
-                yield [sum(h) for h in kwise(haplotypes, 2)]
+    1. Sample causal variants, effect sizes, and recombinations (at fixed
+       intervals); reconstruct locally to accumulate liabilities and genetic
+       variance
 
-def reconstruct_mosaic(ancestors, ref_dir='.', **kwargs):
-    """Yield reconstructed genotypes from recorded recombinations
+    2. Add Gaussian noise; reconstruct the sample genotypes and compute
+       marginal association statistics
 
-    ancestors - pointer to haplotypes to copy between recombinations
-    kwargs - keyword arguments to parse_oxstats_haplotypes
+    n - target number of samples
+    pve - target proportion of variance explained
+    ref_dir - base directory of 1KG reference haplotypes
+    kwargs - keyword arguments to oxstats_haplotypes
 
     """
-    J = os.path.join
-    for chr_ in [str(i) for i in range(23)]:
-        sample_file = J(ref_dir, 'ALL.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.sample')
-        legend_file = J(ref_dir, 'ALL.chr{}.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.legend.gz'.format(chr_))
-        haps_file = J(ref_dir, 'ALL.chr{}.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.haplotypes.gz'.format(chr_))
-        yield from reconstruct_chromosome_mosaic(ancestors, sample_file, legend_file, haps_file, **kwargs)
+    key = lambda x: int(int(x[0][1]) / window_size)
+    y = numpy.zeros(n)
+    mosaic = []
+    ## Pass 1
+    for window in windows(key, ref_dir=ref_dir, **kwargs):
+        window = numpy.array([h for _, h in window])
+        p, k = window.shape
+        mosaic.append(R.randint(0, k, size=2 * n))
+        if R.rand() < p_causal:
+            causal = R.choice(numpy.arange(p), size=n_per_window, replace=False)
+            effects = R.normal(size=n_per_window)
+            w = window.T[mosaic[-1], causal]  # 2n x n_per_window
+            x = w[::2] + w[1::2]
+            y += x.reshape(-1, n_per_window).dot(effects)
+    y += R.normal(scale=(1 / pve - 1) * y.std(), size=n)
+    y -= y.mean()
+    y -= y.std()
+    ## Pass 2
+    numpy.seterr(all='warn')
+    for ancestors, window in zip(mosaic, windows(key, ref_dir=ref_dir, **kwargs)):
+        window = list(window)
+        w = numpy.array([h for _, h in window]).T[ancestors]  # 2n x p
+        x = (w[::2] + w[1::2]).astype('float32')
+        x -= x.mean(axis=0)
+        var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
+        b = y.T.dot(x).T / var
+        rss = numpy.inner(y - x.dot(b), y - x.dot(b))
+        se = rss / var
+        stat = numpy.square(b / se)
+        logp = -scipy.stats.chi2(1).logsf(stat)
+        for (l, _), p in zip(window, logp):
+            print(' '.join(l), p)
 
 def sample_uniform(data, p_causal=0.5, window_size=1e6, n_per_window=1):
     for _, g in itertools.groupby(data, key=lambda x: (x[0], int(int(x[2]) / window_size))):
