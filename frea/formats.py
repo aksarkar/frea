@@ -6,12 +6,13 @@ Author: Abhishek Sarkar <aksarkar@mit.edu>
 import contextlib
 import gzip
 import itertools
+import operator
 import math
 import sys
 
 import scipy.stats
 
-from .algorithms import kwise
+from .algorithms import kwise, moments
 
 ucsc_bed_format = [str, int, int, str, float]
 impg_format = [str, int, str, str, float, float]
@@ -155,3 +156,26 @@ def oxstats_haplotypes(sample_file, legend_file, haps_file, **kwargs):
         samples = [line.split() for line in f]
     with gzip.open(legend_file, 'rt') as f, gzip.open(haps_file, 'rt') as g:
         yield parse_oxstats_haps(samples, f, g)
+
+@contextlib.contextmanager
+def decode_recombination_hotspots(hotspot_file):
+    """Return a generator which yields recombination hotspots.
+
+    deCODE estimated recombination rates in 10kb windows and defined hotspots
+    based on significant difference against flanking regions. We combine
+    contiguous 10kb windows, take the midpoint as the recombination point, and
+    take the mean standardized recombination rate as the recombination rate
+    (percentage of meioses which recombine).
+
+    """
+    def merge(parsed):
+        for _, g in itertools.groupby(parsed, key=operator.itemgetter(0)):
+            g = list(g)
+            mean, _ = moments(x[-1] for x in g)
+            midpoint = (g[0][2] + g[-1][3]) // 2
+            yield midpoint, mean
+
+    with gzip.open(hotspot_file, 'rt') as f:
+        data = (line.split() for line in f)
+        parsed = parse([str, str, int, int, float], data)
+        yield merge(parsed)
