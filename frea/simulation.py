@@ -141,8 +141,15 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
             name, pos, a0, a1, *_ = l
             print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
 
-def combine_genetic_values(files, pve=0.5):
-    """Add Gaussian noise to generate a phenotype with target PVE"""
+def combine_genetic_values(seed, files, pve=0.5):
+    """Add Gaussian noise to generate a phenotype with target PVE
+
+    seed - random seed
+    files - pickled (y, events) tuples
+    pve - target PVE
+
+    """
+    R.seed(seed)
     genetic_values = []
     for f_ in files:
         with open(f_, 'rb') as f:
