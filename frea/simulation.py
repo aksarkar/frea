@@ -98,8 +98,8 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
         mosaic[hits] = ancestors
     return y, events
 
-def marginal_association(seed, y, mosaic, events, hotspot_file_file, pve=0.5,
-                         eps=1e-8, **kwargs):
+def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
+                         **kwargs):
     """Output marginal association statistics for a Gaussian phenotype
 
     In the second pass, reconstruct the sample genotypes locally and compute
@@ -119,22 +119,25 @@ def marginal_association(seed, y, mosaic, events, hotspot_file_file, pve=0.5,
     kwargs - arguments to oxstats_haplotypes
 
     """
-    n = y.shape
-    R.seed(seed)
-    mosaic = R.randint(0, k, size=2 * n)
+    n = y.shape[0]
+    mosaic = None
     numpy.seterr(all='warn')
     for (block, _), event in zip(blocks(hotspot_file, **kwargs), events):
         block = list(block)
+        if mosaic is None:
+            k = len(block[0][1])
+            R.seed(seed)
+            mosaic = R.randint(0, k, size=2 * n)
         hits, ancestors = event
         mosaic[hits] = ancestors
-        x = _reconstruct(mosaic, [h for _, h in window])
+        x = _reconstruct(mosaic, [h for _, h in block])
         var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
         b = y.T.dot(x).T / var
         rss = numpy.inner(y - x.dot(b), y - x.dot(b))
         se = rss / var
         stat = numpy.square(b / se)
         logp = -scipy.stats.chi2(1).logsf(stat)
-        for (l, _), p in zip(window, logp):
+        for (l, _), p in zip(block, logp):
             name, pos, a0, a1, *_ = l
             print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
 
