@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+import argparse
+import pickle
+import sys
+
+from frea.simulation import *
+
+parser = argparse.ArgumentParser('frea-sample-events', description='First pass sampler for simulation')
+parser.add_argument('seed', help='Random seed (integer)')
+parser.add_argument('n', help='Target number of samples (integer)')
+parser.add_argument('legend_file', help='1KG legend (single chromosome)')
+parser.add_argument('haps_file', help='1KG reference haplotypes (single chromosome)')
+parser.add_argument('sample_file', help='1KG sample file')
+parser.add_argument('hotspot_file', help='deCODE recombination hotspots (single chromosome)')
+parser.add_argument('output_file', help='Output file name')
+args = parser.parse_args()
+
+y, events = sample_events(seed=int(args.seed), n=int(args.n),
+                          legend_file=args.legend_file, haps_file=args.haps_file,
+                          sample_file=args.sample_file, hotspot_file=args.hotspot_file)
+with open(args.output_file, 'wb') as f:
+    pickle.dump((y, events), f)

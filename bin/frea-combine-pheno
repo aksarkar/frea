@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+import argparse
+import pickle
+import sys
+
+from frea.simulation import *
+
+parser = argparse.ArgumentParser(description='Generate a Gaussian phenotype given per-chromosome genetic values')
+parser.add_argument('seed', help='Random seed (integer)')
+parser.add_argument('files', nargs='+', help='Genetic values (pickled output by frea-sample-events)')
+parser.add_argument('output_file', help='Output file name')
+parser.add_argument('--pve', help='Target PVE', default=0.5)
+args = parser.parse_args()
+
+y = combine_genetic_values(args.seed, args.files, args.pve)
+with open(args.output_file, 'wb') as f:
+    pickle.dump(y, f)
