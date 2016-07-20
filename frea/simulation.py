@@ -155,11 +155,11 @@ def combine_genetic_values(seed, files, pve=0.5):
         with open(f_, 'rb') as f:
             y, _ = pickle.load(f)
             genetic_values.append(y)
-    y = sum(genetic_values)
+    y = numpy.array(genetic_values).sum(axis=0)
     # Use the realized genetic variance to set the noise scale. In other
     # simulations, we use the population value of the genetic variance (based
     # on MAF and effect size) instead.
-    y += R.normal(scale=(1 / pve - 1) * y.std(), size=n)
+    y += R.normal(scale=(1 / pve - 1) * y.std(), size=y.shape)
     y -= y.mean()
     y -= y.std()
     return y

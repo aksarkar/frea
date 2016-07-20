@@ -12,6 +12,6 @@ parser.add_argument('output_file', help='Output file name')
 parser.add_argument('--pve', help='Target PVE', default=0.5)
 args = parser.parse_args()
 
-y = combine_genetic_values(args.seed, args.files, args.pve)
+y = combine_genetic_values(int(args.seed), args.files, float(args.pve))
 with open(args.output_file, 'wb') as f:
     pickle.dump(y, f)
