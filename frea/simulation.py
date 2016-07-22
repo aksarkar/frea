@@ -98,6 +98,24 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
         mosaic[hits] = ancestors
     return y, events
 
+_logsf = scipy.stats.chi2(1).logsf
+
+def compute_marginal_stats(x, y):
+    """Compute marginal association statistics for SNPs x against phenotype y
+
+    Assume Gaussian phenotype with mean 0, and all SNPs centered, and perform
+    univariate linear regressions in parallel for each SNP.
+
+    """
+    n, p = x.shape
+    var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
+    b = y.T.dot(x).T / var
+    s = ((y ** 2).sum() - b ** 2 * var) / (n - 1)
+    se = numpy.sqrt(s / var)
+    stat = numpy.square(b / se)
+    logp = -_logsf(stat)
+    return b, se, logp
+
 def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
                          **kwargs):
     """Output marginal association statistics for a Gaussian phenotype
@@ -131,12 +149,7 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
         hits, ancestors = event
         mosaic[hits] = ancestors
         x = _reconstruct(mosaic, [h for _, h in block])
-        var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
-        b = y.T.dot(x).T / var
-        rss = numpy.inner(y - x.dot(b), y - x.dot(b))
-        se = rss / var
-        stat = numpy.square(b / se)
-        logp = -scipy.stats.chi2(1).logsf(stat)
+        b, se, logp = compute_marginal_stats(x, y)
         for (l, _), p in zip(block, logp):
             name, pos, a0, a1, *_ = l
             print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
@@ -191,3 +204,6 @@ def simulate_null(samples, probs, pve=0.5, **kwargs):
     print(' '.join(samples[1]), 'P')
     for i, y_i in enumerate(y):
         print(' '.join(samples[i + 2]), y_i)
+
+if __name__ == '__main__':
+    y, events = sample_events(0, 10000, 'hotspots.gz', p_causal=1, legend_file='legend.gz', haps_file='haps.gz', sample_file='ALL.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.sample')

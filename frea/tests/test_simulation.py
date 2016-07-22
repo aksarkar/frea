@@ -44,3 +44,10 @@ def test_sample_events(set_working_dir):
     y, events = sample_events(0, 100, hotspot_file, sample_file=sample_file,
                               legend_file=legend_file, haps_file=haps_file)
     assert y.shape == (100,)
+
+def test_marginal_association(set_working_dir):
+    sample_file, legend_file, haps_file, hotspot_file = set_working_dir
+    y, events = sample_events(0, 100, hotspot_file, sample_file=sample_file,
+                              legend_file=legend_file, haps_file=haps_file)
+    marginal_association(0, y, events, hotspot_file, sample_file=sample_file,
+                         legend_file=legend_file, haps_file=haps_file)
