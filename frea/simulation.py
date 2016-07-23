@@ -39,7 +39,7 @@ def blocks(hotspot_file, **kwargs):
             yield itertools.takewhile(lambda x: int(x[0][1]) < pos, data), rate
         yield data, 0
 
-def _reconstruct(mosaic, haplotypes):
+def _reconstruct(mosaic, haplotypes, center=True):
     """Return centered genotypes (n x p) according to ancestor pointers
 
     haplotypes - list of list of haplotypes (p x k)
@@ -47,8 +47,10 @@ def _reconstruct(mosaic, haplotypes):
 
     """
     w = numpy.array(haplotypes, dtype='int8').T[mosaic]  # 2n x p
-    x = (w[::2] + w[1::2]).astype('float32')
-    x -= x.mean(axis=0)
+    x = w[::2] + w[1::2]
+    if center:
+        x = x.astype('float32')
+        x -= x.mean(axis=0)
     return x
 
 def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
@@ -153,6 +155,44 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
         for (l, _), p in zip(block, logp):
             name, pos, a0, a1, *_ = l
             print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
+
+def output_genotypes(seed, n, events, chromosome, hotspot_file,
+                     file=sys.stdout, **kwargs):
+    """Output reconstructed genotypes in VCF format
+
+    Assume random seed is the same used to sample recombination events (to
+    ensure same starting mosaic)
+
+    seed - random seed (integer)
+    events - recombination events
+    chromosome - chromosome code
+    hotspot_file - deCODE recombination hotspot file (single chromosome)
+    kwargs - arguments to oxstats_haplotypes
+
+    """
+    print("##fileFormat=VCFv4.1", file=file)
+    print('#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO',
+          'FORMAT', ' '.join('GEN{}'.format(i) for i in range(n)), file=file)
+    mosaic = None
+    coding = ('0/0', '0/1', '1/1')
+    for (block, _), event in zip(blocks(hotspot_file, **kwargs), events):
+        block = list(block)
+        if mosaic is None:
+            k = len(block[0][1])
+            R.seed(seed)
+            mosaic = R.randint(0, k, size=2 * n)
+        hits, ancestors = event
+        mosaic[hits] = ancestors
+        x = _reconstruct(mosaic, [h for _, h in block], center=False)
+        for (l, _), x_j in zip(block, x):
+            name, pos, a0, a1, *_ = l
+            print(chromosome, pos, name, a0, a1, '.', '.', '.', 'GTrint',
+                  ' '.join(coding[x_ij] for x_ij in x_j), file=file)
+
+def output_phenotype(y, file=sys.stdout):
+    """Output phenotype in plink format"""
+    for i, y_i in enumerate(y):
+        print('0', 'GEN{}'.format(i), y_i, file=file)
 
 def combine_genetic_values(seed, files, pve=0.5):
     """Add Gaussian noise to generate a phenotype with target PVE
