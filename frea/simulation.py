@@ -172,9 +172,9 @@ def combine_genetic_values(seed, files, pve=0.5):
     # Use the realized genetic variance to set the noise scale. In other
     # simulations, we use the population value of the genetic variance (based
     # on MAF and effect size) instead.
-    y += R.normal(scale=(1 / pve - 1) * y.std(), size=y.shape)
+    y += R.normal(scale=numpy.sqrt((1 / pve - 1) * y.var()), size=y.shape)
     y -= y.mean()
-    y -= y.std()
+    y /= y.std()
     return y
 
 def sample_uniform(data, p_causal=0.5, window_size=1e6, n_per_window=1):
@@ -197,7 +197,7 @@ def simulate_null(samples, probs, pve=0.5, **kwargs):
     for dose in sample_uniform(probs, **kwargs):
         dose -= dose.mean()
         y += dose * R.normal()
-    y += R.normal(scale=(1 / pve - 1) * y.std())
+    y += R.normal(scale=numpy.sqrt((1 / pve - 1) * y.var()))
     y -= y.mean()
     y /= y.std()
     print(' '.join(samples[0]), 'pheno')
