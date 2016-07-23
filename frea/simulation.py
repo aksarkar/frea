@@ -34,7 +34,8 @@ def blocks(hotspot_file, **kwargs):
 
     """
 
-    with decode_recombination_hotspots(hotspot_file) as hotspots, oxstats_haplotypes(**kwargs) as data:
+    with decode_recombination_hotspots(hotspot_file) as hotspots, \
+         oxstats_haplotypes(**kwargs) as data:
         for pos, rate in hotspots:
             yield itertools.takewhile(lambda x: int(x[0][1]) < pos, data), rate
         yield data, 0
