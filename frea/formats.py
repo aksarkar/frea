@@ -4,6 +4,7 @@ Author: Abhishek Sarkar <aksarkar@mit.edu>
 
 """
 import contextlib
+import functools
 import gzip
 import itertools
 import operator
@@ -12,7 +13,7 @@ import sys
 
 import scipy.stats
 
-from .algorithms import kwise, moments
+from .algorithms import join, kwise, moments
 
 ucsc_bed_format = [str, int, int, str, float]
 impg_format = [str, int, str, str, float, float]
@@ -99,22 +100,36 @@ def parse_oxstats(data):
         yield row
 
 @contextlib.contextmanager
-def oxstats(sample_file, gen_file=None):
+def oxstats_genotypes(sample_file, gen_file):
     """Return the list of samples and a generator which yields genotype
 probabilities.
 
-    By default, reads from stdin. Expects data in OXSTATS gen format (not bgen)
-
-    This implementation does not allow random access to avoid memory issues.
+    Expects data in OXSTATS gen format (not bgen). This implementation does
+    not allow random access to avoid memory issues.
 
     """
     with open(sample_file) as f:
-        samples = [line.split() for line in f]
-    if gen_file is None:
-        yield samples, parse_oxstats(sys.stdin)
-    else:
-        with gzip.open(gen_file, 'rt') as f:
-            yield samples, parse_oxstats(f)
+        data = (line.split() for line in f)
+        h1 = next(data)
+        h2 = next(data)
+        samples = list(data)
+    with gzip.open(gen_file, 'rt') as f:
+        yield h1, h2, samples, parse_oxstats(f)
+
+def _merge_oxstats(seq1, seq2):
+    """Merge lines of OXSTATS genotypes, matching on SNP attributes"""
+    for a, b in join(seq1, seq2, key1=operator.itemgetter(2)):
+        if a[:5] == b[:5]:
+            yield a + b[5:]
+
+def merge_oxstats(iterables):
+    """Yield merged genotypes from iterables
+
+    iterables -parsed OXSTATS data
+
+    """
+    for row in functools.reduce(_merge_oxstats, iterables):
+        yield row
 
 def parse_oxstats_haps(samples, legend_iterable, haps_iterable, group='EUR',
                        snps_only=True, min_maf=0.01):

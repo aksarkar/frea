@@ -234,17 +234,22 @@ def simulate_null(samples, probs, pve=0.5, **kwargs):
     within 1MB windows.
 
     """
-    y = numpy.zeros(len(samples) - 2)
+    y = numpy.zeros(len(samples))
     for dose in sample_uniform(probs, **kwargs):
         dose -= dose.mean()
-        y += dose * R.normal()
+        y += dose * R.normal(size=y.shape[0])
     y += R.normal(scale=numpy.sqrt((1 / pve - 1) * y.var()))
     y -= y.mean()
     y /= y.std()
-    print(' '.join(samples[0]), 'pheno')
-    print(' '.join(samples[1]), 'P')
     for i, y_i in enumerate(y):
-        print(' '.join(samples[i + 2]), y_i)
+        print(' '.join(samples[i]), y_i)
 
 if __name__ == '__main__':
-    y, events = sample_events(0, 10000, 'hotspots.gz', p_causal=1, legend_file='legend.gz', haps_file='haps.gz', sample_file='ALL.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.sample')
+    with contextlib.ExitStack() as stack:
+        data = [stack.enter_context(oxstats_genotypes(*args)) for args in kwise(sys.argv[1:], 2)]
+        samples = list(itertools.chain.from_iterable(s for _, _, s, _ in data))
+        merged = merge_oxstats([d for _, _, _, d in data])
+        h1, h2, *_ = data[0]
+        print(' '.join(h1), 'pheno')
+        print(' '.join(h2), 'P')
+        simulate_null(samples, merged)

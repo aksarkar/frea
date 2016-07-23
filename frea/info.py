@@ -17,17 +17,8 @@ import re
 import signal
 import sys
 
-from .algorithms import join, kwise
-from .formats import chromosome, get_pouyak_name, parse_oxstats
-
-def _merge_oxstats(seq1, seq2):
-    for a, b in join(seq1, seq2, key1=operator.itemgetter(2)):
-        if a[:5] == b[:5]:
-            yield a + b[5:]
-
-def merge_oxstats(iterables):
-    for row in functools.reduce(_merge_oxstats, iterables):
-        yield row
+from .algorithms import *
+from .formats import *
 
 def info(p):
     """Compute the ratio between observed and complete information.
