@@ -16,8 +16,9 @@
 This repository provides Python and R packages implementing the analyses
 presented in:
 
-Sarkar, Ward, Kellis, "Functional enrichments of disease variants across
-thousands of independent loci in eight diseases"
+- Sarkar, A. K., Ward, L. D., & Kellis, M. (2016). Functional enrichments of
+  disease variants across thousands of independent loci in eight diseases.
+  bioRxiv. http://dx.doi.org/10.1101/048066
 
 The computational pipeline described in the text (which utilizes these
 packages) is available from http://www.github.com/aksarkar/frea-pipeline
