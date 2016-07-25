@@ -86,13 +86,20 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
         p, k = haplotypes.shape
         if mosaic is None:
             R.seed(seed)
-            mosaic = numpy.arange(2 * n)
+            mosaic = R.randint(0, k, size=2 * n)
         if R.rand() < p_causal:
             causal = R.choice(numpy.arange(p), size=n_per_window, replace=False)
             effects = R.normal(size=n_per_window)
             x = _reconstruct(mosaic, haplotypes)
             y += x[:,causal].dot(effects)
-        events.append([])
+        # TODO: without rejection sampling, the sampled rate of recombinations
+        # will be biased towards zero. But accurately simulating recombination
+        # is not the goal of this simulation, so just verify that the summary
+        # statistics are reasonable
+        hits = numpy.where(R.uniform(size=2 * n) < rate / 100)[0]
+        ancestors = R.randint(0, k, size=hits.shape)
+        events.append((hits, ancestors))
+        mosaic[hits] = ancestors
     return y, events
 
 _logsf = scipy.stats.chi2(1).logsf
@@ -141,12 +148,14 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
         if mosaic is None:
             k = len(haplotypes[0])
             R.seed(seed)
-            mosaic = numpy.arange(2 * n)
+            mosaic = R.randint(0, k, size=2 * n)
+        hits, ancestors = event
+        mosaic[hits] = ancestors
         x = _reconstruct(mosaic, haplotypes)
         b, se, logp = compute_marginal_stats(x, y)
-        for l, b_j, s_j, p in zip(legend, b, se, logp):
+        for l, p in zip(legend, logp):
             name, pos, a0, a1, *_ = l
-            print(name, pos, a0, a1, b_j, s_j, p)
+            print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
 
 def output_genotypes(seed, y, events, chromosome, hotspot_file,
                      file=sys.stdout, **kwargs):
@@ -174,7 +183,9 @@ def output_genotypes(seed, y, events, chromosome, hotspot_file,
         if mosaic is None:
             k = len(haplotypes[0])
             R.seed(seed)
-            mosaic = numpy.arange(2 * n)
+            mosaic = R.randint(0, k, size=2 * n)
+        hits, ancestors = event
+        mosaic[hits] = ancestors
         x = _reconstruct(mosaic, haplotypes, center=False).T
         for l, x_j in zip(legend, x):
             name, pos, a0, a1, *_ = l
