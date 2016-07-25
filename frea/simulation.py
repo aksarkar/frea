@@ -37,8 +37,9 @@ def blocks(hotspot_file, **kwargs):
     with decode_recombination_hotspots(hotspot_file) as hotspots, \
          oxstats_haplotypes(**kwargs) as data:
         for pos, rate in hotspots:
-            yield itertools.takewhile(lambda x: int(x[0][1]) < pos, data), rate
-        yield data, 0
+            block = itertools.takewhile(lambda x: int(x[0][1]) < pos, data)
+            yield list(zip(*block)), rate
+        yield list(zip(*data)), 0
 
 def _reconstruct(mosaic, haplotypes, center=True):
     """Return centered genotypes (n x p) according to ancestor pointers
@@ -47,8 +48,9 @@ def _reconstruct(mosaic, haplotypes, center=True):
     mosaic - list of ancestor pointers (2n x 1; values in 1..k)
 
     """
+    n = mosaic.shape[0] / 2
     w = numpy.array(haplotypes, dtype='int8').T[mosaic]  # 2n x p
-    x = w[::2] + w[1::2]
+    x = w.reshape(n, -1, 2).sum(axis=2)
     if center:
         x = x.astype('float32')
         x -= x.mean(axis=0)
@@ -77,28 +79,20 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
     mosaic = None
     events = []
     y = numpy.zeros(n)
-    for block, rate in blocks(hotspot_file, **kwargs):
-        haplotypes = [h for _, h in block]
+    for (_, haplotypes), rate in blocks(hotspot_file, **kwargs):
         if len(haplotypes) == 0:
             break
         haplotypes = numpy.array(haplotypes, dtype='int8')
         p, k = haplotypes.shape
         if mosaic is None:
             R.seed(seed)
-            mosaic = R.randint(0, k, size=2 * n)
+            mosaic = numpy.arange(2 * n)
         if R.rand() < p_causal:
             causal = R.choice(numpy.arange(p), size=n_per_window, replace=False)
             effects = R.normal(size=n_per_window)
             x = _reconstruct(mosaic, haplotypes)
             y += x[:,causal].dot(effects)
-        # TODO: without rejection sampling, the sampled rate of recombinations
-        # will be biased towards zero. But accurately simulating recombination
-        # is not the goal of this simulation, so just verify that the summary
-        # statistics are reasonable
-        hits = numpy.where(R.uniform(size=2 * n) < rate / 100)[0]
-        ancestors = R.randint(0, k, size=hits.shape)
-        events.append((hits, ancestors))
-        mosaic[hits] = ancestors
+        events.append([])
     return y, events
 
 _logsf = scipy.stats.chi2(1).logsf
@@ -143,21 +137,18 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
     n = y.shape[0]
     mosaic = None
     numpy.seterr(all='warn')
-    for (block, _), event in zip(blocks(hotspot_file, **kwargs), events):
-        block = list(block)
+    for ((legend, haplotypes), _), event in zip(blocks(hotspot_file, **kwargs), events):
         if mosaic is None:
-            k = len(block[0][1])
+            k = len(haplotypes[0])
             R.seed(seed)
-            mosaic = R.randint(0, k, size=2 * n)
-        hits, ancestors = event
-        mosaic[hits] = ancestors
-        x = _reconstruct(mosaic, [h for _, h in block])
+            mosaic = numpy.arange(2 * n)
+        x = _reconstruct(mosaic, haplotypes)
         b, se, logp = compute_marginal_stats(x, y)
-        for (l, _), p in zip(block, logp):
+        for l, b_j, s_j, p in zip(legend, b, se, logp):
             name, pos, a0, a1, *_ = l
-            print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
+            print(name, pos, a0, a1, b_j, s_j, p)
 
-def output_genotypes(seed, n, events, chromosome, hotspot_file,
+def output_genotypes(seed, y, events, chromosome, hotspot_file,
                      file=sys.stdout, **kwargs):
     """Output reconstructed genotypes in VCF format
 
@@ -171,24 +162,25 @@ def output_genotypes(seed, n, events, chromosome, hotspot_file,
     kwargs - arguments to oxstats_haplotypes
 
     """
-    print("##fileFormat=VCFv4.1", file=file)
+    n = y.shape[0]
+    delim='\t'
+    print("##fileformat=VCFv4.1", file=file)
     print('#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO',
-          'FORMAT', ' '.join('GEN{}'.format(i) for i in range(n)), file=file)
+          'FORMAT', delim.join('GEN{}'.format(i) for i in range(n)), sep=delim,
+          file=file)
     mosaic = None
     coding = ('0/0', '0/1', '1/1')
-    for (block, _), event in zip(blocks(hotspot_file, **kwargs), events):
-        block = list(block)
+    for ((legend, haplotypes), _), event in zip(blocks(hotspot_file, **kwargs), events):
         if mosaic is None:
-            k = len(block[0][1])
+            k = len(haplotypes[0])
             R.seed(seed)
-            mosaic = R.randint(0, k, size=2 * n)
-        hits, ancestors = event
-        mosaic[hits] = ancestors
-        x = _reconstruct(mosaic, [h for _, h in block], center=False)
-        for (l, _), x_j in zip(block, x):
+            mosaic = numpy.arange(2 * n)
+        x = _reconstruct(mosaic, haplotypes, center=False).T
+        for l, x_j in zip(legend, x):
             name, pos, a0, a1, *_ = l
-            print(chromosome, pos, name, a0, a1, '.', '.', '.', 'GTrint',
-                  ' '.join(coding[x_ij] for x_ij in x_j), file=file)
+            print(chromosome, pos, name, a0, a1, '.', '.', '.', 'GT',
+                  delim.join(coding[x_ij] for x_ij in x_j), sep=delim,
+                  file=file)
 
 def output_phenotype(y, file=sys.stdout):
     """Output phenotype in plink format"""

@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+import argparse
+import gzip
+import pickle
+import sys
+
+from frea.simulation import *
+
+parser = argparse.ArgumentParser()
+parser.add_argument('seed', help='Random seed (integer)')
+parser.add_argument('chromosome', help='Chromosome (integer)')
+parser.add_argument('pheno', help='Merged phenotype file (output of frea-combine-pheno)')
+parser.add_argument('events', help='Recombination events file (output frea-sample-events)')
+parser.add_argument('legend_file', help='1KG legend (single chromosome)')
+parser.add_argument('haps_file', help='1KG reference haplotypes (single chromosome)')
+parser.add_argument('sample_file', help='1KG sample file')
+parser.add_argument('hotspot_file', help='deCODE recombination hotspots (single chromosome)')
+parser.add_argument('prefix', help='Prefix for output dataset')
+args = parser.parse_args()
+
+with open(args.events, 'rb') as f:
+    _, events = pickle.load(f)
+with open(args.pheno, 'rb') as f:
+    y = pickle.load(f)
+with gzip.open('{}.vcf.gz'.format(args.prefix), 'wt') as f:
+    output_genotypes(seed=int(args.seed), y=y, events=events,
+                     chromosome=args.chromosome,
+                     hotspot_file=args.hotspot_file,
+                     legend_file=args.legend_file,
+                     haps_file=args.haps_file,
+                     sample_file=args.sample_file,
+                     file=f)
+with open('{}.pheno'.format(args.prefix), 'w') as f:
+    output_phenotype(y, file=f)
