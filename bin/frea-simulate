@@ -13,6 +13,7 @@ parser.add_argument('legend_file', help='1KG legend (single chromosome)')
 parser.add_argument('haps_file', help='1KG reference haplotypes (single chromosome)')
 parser.add_argument('sample_file', help='1KG sample file')
 parser.add_argument('hotspot_file', help='deCODE recombination hotspots (single chromosome)')
+parser.add_argument('--chunk', default=1000, help='Number of univariate model to fit in parallel')
 args = parser.parse_args()
 
 with open(args.pheno, 'rb') as f, open(args.events, 'rb') as g:
@@ -20,6 +21,7 @@ with open(args.pheno, 'rb') as f, open(args.events, 'rb') as g:
     _, events = pickle.load(g)
     marginal_association(seed=int(args.seed), y=y, events=events,
                          hotspot_file=args.hotspot_file,
+                         chunk_size=int(args.chunk),
                          legend_file=args.legend_file,
                          haps_file=args.haps_file,
                          sample_file=args.sample_file)
