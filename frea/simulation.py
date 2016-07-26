@@ -186,14 +186,14 @@ def output_genotypes(seed, y, events, chromosome, hotspot_file,
             k = len(haplotypes[0])
             R.seed(seed)
             mosaic = R.randint(0, k, size=2 * n)
-        hits, ancestors = event
-        mosaic[hits] = ancestors
         x = _reconstruct(mosaic, haplotypes, center=False).T
         for l, x_j in zip(legend, x):
             name, pos, a0, a1, *_ = l
             print(chromosome, pos, name, a0, a1, '.', '.', '.', 'GT',
                   delim.join(coding[x_ij] for x_ij in x_j), sep=delim,
                   file=file)
+        hits, ancestors = event
+        mosaic[hits] = ancestors
 
 def output_phenotype(y, file=sys.stdout):
     """Output phenotype in plink format"""
