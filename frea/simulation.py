@@ -21,8 +21,7 @@ from .formats import *
 def blocks(hotspot_file, **kwargs):
     """Yield LD blocks defined by recombination hotspots
 
-    Blocks are pairs of iterables (instances of itertools.takewhile), allowing
-    sequential access to OXSTATS reference haplotypes, and recombination rates
+    Blocks are a list of OXSTATS reference haplotypes and recombination rates
     at the block boundary (next recombination). Hotspots are taken as the
     center of contiguous 10kb regions with significantly different
     recombination rate from flanking regions. Recombination rates are taken as
@@ -42,10 +41,13 @@ def blocks(hotspot_file, **kwargs):
         yield list(zip(*data)), 0
 
 def _reconstruct(mosaic, haplotypes, center=True):
-    """Return centered genotypes (n x p) according to ancestor pointers
+    """Return genotypes (n x p) according to ancestor pointers
+
+    If genotypes are centered, casts to float32; otherwise, casts to int8.
 
     haplotypes - list of list of haplotypes (p x k)
     mosaic - list of ancestor pointers (2n x 1; values in 1..k)
+    center - True if returned genotypes should be centered
 
     """
     n = mosaic.shape[0] / 2
@@ -69,10 +71,11 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
     configuration plus sparse updates. Causal variants and effect sizes are
     stored as genetic values (since we won't need the actual effects later).
 
-    mosaic - initial ancestor pointers (2n x 1; values in 1..k)
+    seed - random seed
+    n - target sample size
+    hotspot_file - deCODE recombination hotspot file (single chromosome)
     p_causal - probability each block contains a causal variant
     n_per_window - number of causal variants per block
-    hotspot_file - deCODE recombination hotspot file (single chromosome)
     kwargs - arguments to oxstats_haplotypes
 
     """
@@ -110,8 +113,12 @@ def compute_marginal_stats(x, y):
     Assume Gaussian phenotype with mean 0, and all SNPs centered, and perform
     univariate linear regressions in parallel for each SNP.
 
+    x - dosage matrix (n x p)
+    y - phenotype vector (n x 1)
+
     """
     n, p = x.shape
+    print(x.shape, file=sys.stderr)
     var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
     b = y.T.dot(x).T / var
     s = ((y ** 2).sum() - b ** 2 * var) / (n - 1)
@@ -121,7 +128,7 @@ def compute_marginal_stats(x, y):
     return b, se, logp
 
 def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
-                         **kwargs):
+                         chunk_size=1000, **kwargs):
     """Output marginal association statistics for a Gaussian phenotype
 
     In the second pass, reconstruct the sample genotypes locally and compute
@@ -133,11 +140,13 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
     Assume the same random seed is used as in the first pass (to get the same
     starting configuration).
 
-    mosaic - initial ancestor pointers (2n x 1; values in 1..k)
+    seed - random seed
+    y - phenotype vector (n x 1)
     events - list of (haplotype index, new ancestor) updates to mosaic
     hotspot_file - deCODE recombination hotspot file (single chromosome)
     pve - target proportion of variance explained
     eps - tolerance (for SNP variance at monomorphic SNPs)
+    chunk_size - number of models to fit in parallel
     kwargs - arguments to oxstats_haplotypes
 
     """
