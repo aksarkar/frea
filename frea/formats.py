@@ -132,18 +132,19 @@ def merge_oxstats(iterables):
         yield row
 
 def parse_oxstats_haps(samples, legend_iterable, haps_iterable, group='EUR',
-                       snps_only=True, min_maf=0.01):
+                       population='GBR', snps_only=True, min_maf=0.01):
     """Return OXSTATS haplotypes which meet the specific criteria
 
     samples - list of (sample, population, group, sex) records
     legend_iterable - file-like object
     haps_iterable - file-like object
     group - sample group
+    population - sample population
     snps_only - only keep SNPs
     min_maf - only keep variants with MAF above threshold
 
     """
-    keep = [x[2] == group for x in samples]
+    keep = [x[1] == population and x[2] == group for x in samples]
     legend_entries = (line.split() for line in legend_iterable)
     header = next(legend_entries)
     maf_col = header.index('{}.maf'.format(group.lower()))
