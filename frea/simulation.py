@@ -111,9 +111,11 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
             value -= value.mean()
             y += value
         # TODO: without rejection sampling, the sampled rate of recombinations
-        # will be biased towards zero. But accurately simulating recombination
-        # is not the goal of this simulation, so just verify that the summary
-        # statistics are reasonable
+        # will be biased towards zero because we sample ancestors with
+        # replacement (so a sampled event might not actually switch
+        # haplotypes). But accurately simulating recombination is not the goal
+        # of this simulation, so just verify that the summary statistics are
+        # reasonable
         hits = numpy.where(R.uniform(size=2 * n) < rate / 100)[0]
         ancestors = R.randint(0, k, size=hits.shape)
         events.append((hits, ancestors))
