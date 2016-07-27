@@ -5,11 +5,7 @@ Usage: python -m frea.simulation SEED N LEGEND HAPS SAMPLE
 Author: Abhishek Sarkar <aksarkar@mit.edu>
 
 """
-import argparse
-import collections
 import itertools
-import gzip
-import pickle
 import random
 import sys
 
@@ -209,21 +205,16 @@ def output_phenotype(y, file=sys.stdout):
     for i, y_i in enumerate(y):
         print('0', 'GEN{}'.format(i), y_i, file=file)
 
-def combine_genetic_values(seed, files, pve=0.5):
+def combine_genetic_values(seed, values, pve=0.5):
     """Add Gaussian noise to generate a phenotype with target PVE
 
     seed - random seed
-    files - pickled (y, events) tuples
+    values - m x n array of genetic values (m chromosomes)
     pve - target PVE
 
     """
     R.seed(seed)
-    genetic_values = []
-    for f_ in files:
-        with open(f_, 'rb') as f:
-            y, _ = pickle.load(f)
-            genetic_values.append(y)
-    y = numpy.array(genetic_values).sum(axis=0)
+    y = values.sum(axis=0)
     # Use the realized genetic variance to set the noise scale. In other
     # simulations, we use the population value of the genetic variance (based
     # on MAF and effect size) instead.
@@ -231,34 +222,3 @@ def combine_genetic_values(seed, files, pve=0.5):
     y -= y.mean()
     y /= y.std()
     return y
-
-def sample_uniform(data, p_causal=0.5, window_size=1e6, n_per_window=1):
-    for _, g in itertools.groupby(data, key=lambda x: (x[0], int(int(x[2]) / window_size))):
-        if random.random() < p_causal:
-            w = list(g)
-            for snp in random.sample(w, n_per_window):
-                yield numpy.array(oxstats_gen_to_dosage(snp[5:]))
-
-def simulate_null(samples, probs, pve=0.5, **kwargs):
-    """Simulate phenotypes under the null (no enrichment)
-
-    Under the null, variants are sampled uniformly at random, independent of
-    annotation. We make a stronger assumption that causal variants are in
-    approximate linkage equilibrium, and sample causal variants uniformly
-    within 1MB windows.
-
-    """
-    y = numpy.zeros(len(samples))
-    for dose in sample_uniform(probs, **kwargs):
-        dose -= dose.mean()
-        y += dose * R.normal(size=y.shape[0])
-    return y
-
-if __name__ == '__main__':
-    with contextlib.ExitStack() as stack:
-        data = [stack.enter_context(oxstats_genotypes(*args)) for args in kwise(sys.argv[2:], 2)]
-        samples = list(itertools.chain.from_iterable(s for _, _, s, _ in data))
-        merged = merge_oxstats([d for _, _, _, d in data])
-        y = simulate_null(samples, merged)
-        with open(sys.argv[1], 'wb') as f:
-            pickle.dump(y, f)
