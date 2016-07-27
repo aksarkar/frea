@@ -158,9 +158,9 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
                                       key=lambda x: int(x[0] // chunk_size)):
             x = _reconstruct(mosaic, [h for _, h in g])
             beta, se, logp = compute_marginal_stats(x, y)
-            for l, b, s, p in zip(legend, beta, se, logp):
-                name, pos, a0, a1, *_ = l
-                print(name, pos, a0, a1, b, s, p)
+        for l, p in zip(legend, logp):
+            name, pos, a0, a1, *_ = l
+            print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
         hits, ancestors = event
         mosaic[hits] = ancestors
 
