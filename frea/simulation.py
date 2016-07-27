@@ -118,7 +118,7 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
         mosaic[hits] = ancestors
     return y, events
 
-_logsf = scipy.stats.chi2(1).logsf
+_sf = scipy.stats.chi2(1).sf
 
 def compute_marginal_stats(x, y):
     """Compute marginal association statistics for SNPs x against phenotype y
@@ -137,7 +137,7 @@ def compute_marginal_stats(x, y):
     s = ((y ** 2).sum() - b ** 2 * var) / (n - 1)
     se = numpy.sqrt(s / var)
     stat = numpy.square(b / se)
-    logp = -_logsf(stat)
+    logp = -numpy.log10(_sf(stat))
     return b, se, logp
 
 def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
@@ -175,9 +175,9 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
                                       key=lambda x: int(x[0] // chunk_size)):
             x = _reconstruct(mosaic, [h for _, h in g])
             beta, se, logp = compute_marginal_stats(x, y)
-        for l, p in zip(legend, logp):
-            name, pos, a0, a1, *_ = l
-            print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
+            for l, p in zip(legend, logp):
+                name, pos, a0, a1, *_ = l
+                print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
         hits, ancestors = event
         mosaic[hits] = ancestors
 
