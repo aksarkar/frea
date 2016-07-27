@@ -1,6 +1,23 @@
 """Simulate phenotypes with different genetic architectures.
 
-Usage: python -m frea.simulation SEED N LEGEND HAPS SAMPLE
+To generate realistic genotypes, we adapt the approach of Loh et al., Nat Genet
+2015 (Supplementary Figure 4) to sample mosaics of founder individuals. We use
+Thousand Genomes phased reference haplotypes as the founders and sample
+recombinations at known recombination hotspots.
+
+The simulation proceeds in two passes over the reference data:
+
+1. Sample recombination events and genetic values
+2. Compute marginal association statistics
+
+The key design decision is to only store the sparse updates to the mosaic
+induced by recombination events, minimizing the storage requirement (which in
+turn improves the performance on NFS).
+
+To control the effect of population structure on marginal summary statistics,
+we restrict founder haplotypes to a single cohort of 1KG. However, it is
+possible (Brand, Lin Alg Appl 2006) to compute a rank-k truncated SVD in one
+additional pass through the data.
 
 Author: Abhishek Sarkar <aksarkar@mit.edu>
 
