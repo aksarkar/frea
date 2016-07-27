@@ -106,8 +106,10 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
         if R.rand() < p_causal:
             causal = R.choice(numpy.arange(p), size=n_per_window, replace=False)
             effects = R.normal(size=n_per_window)
-            x = _reconstruct(mosaic, haplotypes)
-            y += x[:,causal].dot(effects)
+            # (k x n_per_window) x (n_per_window x 1) => (2n x 1) => (n x 1)
+            value = haplotypes[causal].T.dot(effects)[mosaic].reshape(-1, 2).sum(axis=1)
+            value -= value.mean()
+            y += value
         # TODO: without rejection sampling, the sampled rate of recombinations
         # will be biased towards zero. But accurately simulating recombination
         # is not the goal of this simulation, so just verify that the summary
