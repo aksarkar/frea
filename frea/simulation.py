@@ -71,7 +71,7 @@ def _reconstruct(mosaic, haplotypes, center=True):
         x -= x.mean(axis=0)
     return x
 
-def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
+def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_block=1,
                   **kwargs):
     """Return recombination events and estimated liabilities
 
@@ -88,7 +88,7 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
     n - target sample size
     hotspot_file - deCODE recombination hotspot file (single chromosome)
     p_causal - probability each block contains a causal variant
-    n_per_window - number of causal variants per block
+    n_per_block - number of causal variants per block
     kwargs - arguments to oxstats_haplotypes
 
     """
@@ -104,9 +104,9 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_window=1,
             R.seed(seed)
             mosaic = R.randint(0, k, size=2 * n)
         if R.rand() < p_causal:
-            causal = R.choice(numpy.arange(p), size=n_per_window, replace=False)
-            effects = R.normal(size=n_per_window)
-            # (k x n_per_window) x (n_per_window x 1) => (2n x 1) => (n x 1)
+            causal = R.choice(numpy.arange(p), size=n_per_block, replace=False)
+            effects = R.normal(size=n_per_block)
+            # (k x n_per_block) x (n_per_block x 1) => (2n x 1) => (n x 1)
             value = haplotypes[causal].T.dot(effects)[mosaic].reshape(-1, 2).sum(axis=1)
             value -= value.mean()
             y += value
