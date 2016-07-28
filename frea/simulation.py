@@ -53,24 +53,6 @@ def blocks(hotspot_file, **kwargs):
             yield list(zip(*block)), rate
         yield list(zip(*data)), 0
 
-def _reconstruct(mosaic, haplotypes, center=True):
-    """Return genotypes (n x p) according to ancestor pointers
-
-    If genotypes are centered, casts to float32; otherwise, casts to int8.
-
-    haplotypes - list of list of haplotypes (p x k)
-    mosaic - list of ancestor pointers (2n x 1; values in 1..k)
-    center - True if returned genotypes should be centered
-
-    """
-    n = mosaic.shape[0] / 2
-    w = numpy.array(haplotypes, dtype='int8').T[mosaic]  # 2n x p
-    x = w.reshape(n, -1, 2).sum(axis=2)
-    if center:
-        x = x.astype('float32')
-        x -= x.mean(axis=0)
-    return x
-
 def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_block=1,
                   **kwargs):
     """Return recombination events and estimated liabilities
@@ -96,8 +78,6 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_block=1,
     events = []
     y = numpy.zeros(n)
     for (_, haplotypes), rate in blocks(hotspot_file, **kwargs):
-        if len(haplotypes) == 0:
-            break
         haplotypes = numpy.array(haplotypes, dtype='int8')
         p, k = haplotypes.shape
         if mosaic is None:
@@ -122,100 +102,102 @@ def sample_events(seed, n, hotspot_file, p_causal=0.5, n_per_block=1,
         mosaic[hits] = ancestors
     return y, events
 
-_sf = scipy.stats.chi2(1).sf
+def _reconstruct(mosaic, haplotypes, center=True):
+    """Return genotypes (n x p) according to ancestor pointers
 
-def compute_marginal_stats(x, y):
-    """Compute marginal association statistics for SNPs x against phenotype y
+    If genotypes are centered, casts to float32; otherwise, casts to int8.
 
-    Assume Gaussian phenotype with mean 0, and all SNPs centered, and perform
-    univariate linear regressions in parallel for each SNP.
-
-    x - dosage matrix (n x p)
-    y - phenotype vector (n x 1)
+    haplotypes - list of list of haplotypes (p x k)
+    mosaic - list of ancestor pointers (2n x 1; values in 1..k)
+    center - True if returned genotypes should be centered
 
     """
-    n, p = x.shape
-    var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
-    b = y.T.dot(x).T / var
-    s = ((y ** 2).sum() - b ** 2 * var) / (n - 1)
-    se = numpy.sqrt(s / var)
-    stat = numpy.square(b / se)
-    logp = -numpy.log10(_sf(stat))
-    return b, se, logp
+    n = mosaic.shape[0] / 2
+    w = numpy.array(haplotypes, dtype='int8').T[mosaic]  # 2n x p
+    x = w.reshape(n, -1, 2).sum(axis=2)
+    if center:
+        x = x.astype('float32')
+        x -= x.mean(axis=0)
+    return x
 
-def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
-                         chunk_size=1000, **kwargs):
-    """Output marginal association statistics for a Gaussian phenotype
-
-    In the second pass, reconstruct the sample genotypes locally and compute
-    marginal association statistics in parallel using matrix operations. Output
-    summary statistics in BED format, with -log10(p) as the score and a
-    placeholder (',') for chromosome. The placeholder is needed to avoid
-    dependency on file name formatting, which changes with each 1KG release
-
-    Assume the same random seed is used as in the first pass (to get the same
-    starting configuration).
+def reconstruction_pass(seed, n, events, hotspot_file, **kwargs):
+    """Yield updated mosaic, legend, and haplotype entries
 
     seed - random seed
-    y - phenotype vector (n x 1)
+    n - target sample size
     events - list of (haplotype index, new ancestor) updates to mosaic
     hotspot_file - deCODE recombination hotspot file (single chromosome)
-    pve - target proportion of variance explained
-    eps - tolerance (for SNP variance at monomorphic SNPs)
-    chunk_size - number of models to fit in parallel
     kwargs - arguments to oxstats_haplotypes
 
     """
-    n = y.shape[0]
     mosaic = None
-    numpy.seterr(all='warn')
     for ((legend, haplotypes), _), (hits, ancestors) in zip(blocks(hotspot_file, **kwargs), events):
         if mosaic is None:
-            k = len(haplotypes[0])
             R.seed(seed)
-            mosaic = R.randint(0, k, size=2 * n)
-        for k, g in itertools.groupby(enumerate(haplotypes),
-                                      key=lambda x: int(x[0] // chunk_size)):
-            x = _reconstruct(mosaic, [h for _, h in g])
-            beta, se, logp = compute_marginal_stats(x, y)
-            for l, p in zip(legend, logp):
-                name, pos, a0, a1, *_ = l
-                print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
-        mosaic[hits] = ancestors
+            mosaic = R.randint(0, len(haplotypes[0]), size=2 * n)
+        else:
+            mosaic[hits] = ancestors
+        yield mosaic, legend, haplotypes
 
-def output_genotypes(seed, n, events, chromosome, hotspot_file,
-                     file=sys.stdout, **kwargs):
+
+
+    """
+
+_sf = scipy.stats.chi2(1).sf
+
+def marginal_association(y, covars=None, eps=1e-8, chunk_size=1000, **kwargs):
+    """Yield marginal association statistics for a Gaussian phenotype
+
+    Reconstruct the sample genotypes locally and fit linear regression models
+    in parallel using matrix operations.
+
+    y - phenotype vector (n x 1)
+    eps - tolerance (for SNP variance at monomorphic SNPs)
+    chunk_size - number of models to fit in parallel
+    kwargs - arguments to reconstruction_pass
+
+    """
+    if covars is not None:
+        raise NotImplementedError
+    for mosaic, legend, haplotypes in reconstruction_pass(**kwargs):
+        for k, g in itertools.groupby(enumerate(zip(legend, haplotypes)), key=lambda x: int(x[0] // chunk_size)):
+            legend, haplotypes = zip(*[x[1] for x in g])
+            x = _reconstruct(mosaic, haplotypes)
+            n, p = x.shape
+            var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
+            beta = y.T.dot(x).T / var
+            s = ((y ** 2).sum() - beta ** 2 * var) / (n - 1)
+            se = numpy.sqrt(s / var)
+            stat = numpy.square(beta / se)
+            logp = -numpy.log10(_sf(stat))
+            for l, b, s, p in zip(legend, beta, se, logp):
+                name, pos, a0, a1, *_ = l
+                yield name, int(pos), a0, a1, b, s, p
+
+def output_genotypes(chromosome, file=sys.stdout, **kwargs):
     """Output reconstructed genotypes in VCF format
 
     Assume random seed is the same used to sample recombination events (to
     ensure same starting mosaic)
 
-    seed - random seed (integer)
-    events - recombination events
     chromosome - chromosome code
-    hotspot_file - deCODE recombination hotspot file (single chromosome)
-    kwargs - arguments to oxstats_haplotypes
+    n - number of samples
+    kwargs - arguments to reconstruction_pass
 
     """
     delim='\t'
     print("##fileformat=VCFv4.1", file=file)
     print('#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO',
-          'FORMAT', delim.join('GEN{}'.format(i) for i in range(n)), sep=delim,
+          'FORMAT', delim.join('GEN{}'.format(i) for i in range(kwargs['n'])), sep=delim,
           file=file)
-    mosaic = None
     coding = ('0/0', '0/1', '1/1')
-    for ((legend, haplotypes), _), (hits, ancestors) in zip(blocks(hotspot_file, **kwargs), events):
-        if mosaic is None:
-            k = len(haplotypes[0])
-            R.seed(seed)
-            mosaic = R.randint(0, k, size=2 * n)
+    for mosaic, legend, haplotypes in reconstruction_pass(**kwargs):
         x = _reconstruct(mosaic, haplotypes, center=False).T
         for l, x_j in zip(legend, x):
             name, pos, a0, a1, *_ = l
             print(chromosome, pos, name, a0, a1, '.', '.', '.', 'GT',
                   delim.join(coding[x_ij] for x_ij in x_j), sep=delim,
                   file=file)
-        mosaic[hits] = ancestors
 
 def output_phenotype(y, file=sys.stdout):
     """Output phenotype in plink format"""

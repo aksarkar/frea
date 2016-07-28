@@ -21,8 +21,8 @@ args = parser.parse_args()
 with open(args.pheno, 'rb') as f, open(args.events, 'rb') as g:
     y = pickle.load(f)
     seed, _, events = pickle.load(g)
-    stats = marginal_association(seed=int(seed), y=y, events=events,
-                                 hotspot_file=args.hotspot_file,
+    stats = marginal_association(y=y, seed=int(seed), n=y.shape[0],
+                                 events=events, hotspot_file=args.hotspot_file,
                                  chunk_size=int(args.chunk),
                                  legend_file=args.legend_file,
                                  haps_file=args.haps_file,
