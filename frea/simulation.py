@@ -169,7 +169,7 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
     n = y.shape[0]
     mosaic = None
     numpy.seterr(all='warn')
-    for ((legend, haplotypes), _), event in zip(blocks(hotspot_file, **kwargs), events):
+    for ((legend, haplotypes), _), (hits, ancestors) in zip(blocks(hotspot_file, **kwargs), events):
         if mosaic is None:
             k = len(haplotypes[0])
             R.seed(seed)
@@ -181,7 +181,6 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
             for l, p in zip(legend, logp):
                 name, pos, a0, a1, *_ = l
                 print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
-        hits, ancestors = event
         mosaic[hits] = ancestors
 
 def output_genotypes(seed, y, events, chromosome, hotspot_file,
@@ -206,7 +205,7 @@ def output_genotypes(seed, y, events, chromosome, hotspot_file,
           file=file)
     mosaic = None
     coding = ('0/0', '0/1', '1/1')
-    for ((legend, haplotypes), _), event in zip(blocks(hotspot_file, **kwargs), events):
+    for ((legend, haplotypes), _), (hits, ancestors) in zip(blocks(hotspot_file, **kwargs), events):
         if mosaic is None:
             k = len(haplotypes[0])
             R.seed(seed)
@@ -217,7 +216,6 @@ def output_genotypes(seed, y, events, chromosome, hotspot_file,
             print(chromosome, pos, name, a0, a1, '.', '.', '.', 'GT',
                   delim.join(coding[x_ij] for x_ij in x_j), sep=delim,
                   file=file)
-        hits, ancestors = event
         mosaic[hits] = ancestors
 
 def output_phenotype(y, file=sys.stdout):
