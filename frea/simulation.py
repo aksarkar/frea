@@ -135,7 +135,6 @@ def compute_marginal_stats(x, y):
 
     """
     n, p = x.shape
-    print(x.shape, file=sys.stderr)
     var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
     b = y.T.dot(x).T / var
     s = ((y ** 2).sum() - b ** 2 * var) / (n - 1)
