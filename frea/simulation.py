@@ -183,7 +183,7 @@ def marginal_association(seed, y, events, hotspot_file, pve=0.5, eps=1e-8,
                 print(output_ucsc_bed(',', p, name, int(pos), a0, a1))
         mosaic[hits] = ancestors
 
-def output_genotypes(seed, y, events, chromosome, hotspot_file,
+def output_genotypes(seed, n, events, chromosome, hotspot_file,
                      file=sys.stdout, **kwargs):
     """Output reconstructed genotypes in VCF format
 
@@ -197,7 +197,6 @@ def output_genotypes(seed, y, events, chromosome, hotspot_file,
     kwargs - arguments to oxstats_haplotypes
 
     """
-    n = y.shape[0]
     delim='\t'
     print("##fileformat=VCFv4.1", file=file)
     print('#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO',

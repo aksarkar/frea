@@ -17,7 +17,8 @@ parser.add_argument('--p-causal', help='Probability of LD block being causal', d
 parser.add_argument('--n-per-window', help='Number of causal variants within LD block', default=1)
 args = parser.parse_args()
 
-y, events = sample_events(seed=int(args.seed), n=int(args.n),
+seed = int(args.seed)
+y, events = sample_events(seed=seed, n=int(args.n),
                           legend_file=args.legend_file,
                           haps_file=args.haps_file,
                           sample_file=args.sample_file,
@@ -25,4 +26,4 @@ y, events = sample_events(seed=int(args.seed), n=int(args.n),
                           p_causal=float(args.p_causal),
                           n_per_window=int(args.n_per_window))
 with open(args.output_file, 'wb') as f:
-    pickle.dump((y, events), f)
+    pickle.dump((seed, y, events), f)

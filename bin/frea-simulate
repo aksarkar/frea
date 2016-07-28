@@ -3,10 +3,11 @@ import argparse
 import pickle
 import sys
 
+from frea.formats import *
 from frea.simulation import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument('seed', help='Random seed (integer)')
+parser = argparse.ArgumentParser(description='Second pass marginal summary statistic computation for simulation')
+parser.add_argument('chromosome', help='Chromosome code (BED format)')
 parser.add_argument('pheno', help='Merged phenotype file (pickle file)')
 parser.add_argument('events', help='Recombination events file (pickle file output by frea-sample-events)')
 parser.add_argument('legend_file', help='1KG legend (single chromosome)')
@@ -14,14 +15,21 @@ parser.add_argument('haps_file', help='1KG reference haplotypes (single chromoso
 parser.add_argument('sample_file', help='1KG sample file')
 parser.add_argument('hotspot_file', help='deCODE recombination hotspots (single chromosome)')
 parser.add_argument('--chunk', default=1000, help='Number of univariate model to fit in parallel')
+parser.add_argument('-d', '--debug', action="store_true", default=False, help='Output debug information instead of BED format')
 args = parser.parse_args()
 
 with open(args.pheno, 'rb') as f, open(args.events, 'rb') as g:
     y = pickle.load(f)
-    _, events = pickle.load(g)
-    marginal_association(seed=int(args.seed), y=y, events=events,
-                         hotspot_file=args.hotspot_file,
-                         chunk_size=int(args.chunk),
-                         legend_file=args.legend_file,
-                         haps_file=args.haps_file,
-                         sample_file=args.sample_file)
+    seed, _, events = pickle.load(g)
+    stats = marginal_association(seed=int(seed), y=y, events=events,
+                                 hotspot_file=args.hotspot_file,
+                                 chunk_size=int(args.chunk),
+                                 legend_file=args.legend_file,
+                                 haps_file=args.haps_file,
+                                 sample_file=args.sample_file)
+    for name, pos, a0, a1, beta, se, logp in stats:
+        if args.debug:
+            print(args.chromosome, name, pos, a0, a1, beta, se, logp, sep='\t')
+        else:
+            print(args.chromosome, pos, pos + len(a0),
+                  get_pouyak_name(args.chromosome, name, pos, a0, a1), logp, sep='\t')
