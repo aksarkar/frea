@@ -14,6 +14,7 @@ parser.add_argument('hotspot_file', help='deCODE recombination hotspots (single 
 parser.add_argument('output_file', help='Output file name')
 parser.add_argument('-k', '--num-components', default=20, help='Number of principal components to compute (default: 20)')
 parser.add_argument('-n', '--n-per-block', default=None, help='Number of variants to downsample per LD block (default: do not downsample)')
+parser.add_argument('-d', '--debug', action='store_true', default=False, help='Debug by comparing against batch SVD (requires large memory)')
 args = parser.parse_args()
 
 partial_svd = None
@@ -24,8 +25,8 @@ for filename in args.events:
         seed, y, events = pickle.load(f)
         partial_svd = thin_svd(k=int(args.num_components),
                                n_per_block=args.n_per_block,
-                               partial_svd=partial_svd, seed=seed,
-                               n=y.shape[0], events=events,
+                               partial_svd=partial_svd, debug=args.debug,
+                               seed=seed, n=y.shape[0], events=events,
                                hotspot_file=args.hotspot_file,
                                legend_file=args.legend_file,
                                haps_file=args.haps_file,

@@ -141,7 +141,7 @@ def reconstruction_pass(seed, n, events, hotspot_file, **kwargs):
             mosaic[hits] = ancestors
         yield mosaic, legend, haplotypes
 
-def thin_svd(k=20, n_per_block=None, partial_svd=None, **kwargs):
+def thin_svd(k=20, n_per_block=None, partial_svd=None, debug=False, **kwargs):
     """Return the partial rank-k truncated SVD of the genotypes
 
     We recover the top k principal components truncated SVD in one pass through
@@ -159,6 +159,7 @@ def thin_svd(k=20, n_per_block=None, partial_svd=None, **kwargs):
     if partial_svd is None:
         U = numpy.matrix(numpy.zeros((kwargs['n'], k)))
         S = numpy.matrix(numpy.zeros((k, k)))
+        V = None
     else:
         U, S = partial_svd
     for mosaic, _, haplotypes in reconstruction_pass(**kwargs):
@@ -168,19 +169,32 @@ def thin_svd(k=20, n_per_block=None, partial_svd=None, **kwargs):
             subsample = numpy.arange(p)
         else:
             subsample = R.choice(numpy.arange(p), size=n_per_block, replace=False)
+        if debug:
+            V = numpy.matrix(numpy.zeros((k, subsample.shape[0])))
         for h in haplotypes[subsample]:
             x = _reconstruct(mosaic, h)
             # Eq. (6)
             m = U.T * x
-            p = x - U * m
+            P = x - U * m
             Ra = numpy.linalg.norm(p) + 1e-8
-            p /= Ra
+            P /= Ra
             # Eq. (9)
-            K = numpy.bmat([[S, m], [numpy.zeros(k).reshape(1, -1), numpy.matrix(Ra)]])
+            K = numpy.bmat([[S, m], [numpy.zeros((1, k)), numpy.matrix(Ra)]])
             UK, SK, VK = numpy.linalg.svd(K, full_matrices=False)
             # Eq. (5); n x (k + 1) * (k + 1) x k
-            U = numpy.bmat([U, p]) * UK[:, :k]
+            U = numpy.bmat([U, P]) * UK[:, :k]
+            if debug:
+                # k * (k + 1) * (k + 1) x p
+                V = VK[:k] * numpy.bmat([[V], [numpy.zeros((1, V.shape[1]))]])
             S = numpy.matrix(numpy.diag(SK[:k]))
+        if debug:
+            x = _reconstruct(mosaic, haplotypes[subsample])
+            Ub, Sb, Vb = numpy.linalg.svd(x)
+            approx1 = U.dot(S).dot(V)
+            approx2 = Ub[:,:20].dot(numpy.diag(Sb[:20])).dot(Vb[:20])
+            import pdb; pdb.set_trace()
+            assert numpy.all(numpy.isclose(approx1, approx2))
+            break
     return U, S
 
 _sf = scipy.stats.chi2(1).sf
