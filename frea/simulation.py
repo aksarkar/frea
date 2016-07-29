@@ -149,24 +149,33 @@ def marginal_association(y, covars=None, eps=1e-8, chunk_size=1000, **kwargs):
     """Yield marginal association statistics for a Gaussian phenotype
 
     Reconstruct the sample genotypes locally and fit linear regression models
-    in parallel using matrix operations.
+    in parallel using matrix operations (Sikorska et al., BMC Bioinformatics
+    2013). We do not include an intercept in the model because we assume
+    genotypes and phenotypes are centered.
 
     y - phenotype vector (n x 1)
+    covars - continuous covariates (n x k)
     eps - tolerance (for SNP variance at monomorphic SNPs)
     chunk_size - number of models to fit in parallel
     kwargs - arguments to reconstruction_pass
 
     """
+    numpy.seterr(all='warn')
     if covars is not None:
-        raise NotImplementedError
+        # Regress out covariates
+        covars -= covars.mean(axis=0)
+        C = numpy.linalg.pinv(covars)
+        y -= covars.dot(C).dot(y)
     for mosaic, legend, haplotypes in reconstruction_pass(**kwargs):
         for k, g in itertools.groupby(enumerate(zip(legend, haplotypes)), key=lambda x: int(x[0] // chunk_size)):
             legend, haplotypes = zip(*[x[1] for x in g])
             x = _reconstruct(mosaic, haplotypes)
+            if covars is not None:
+                x -= covars.dot(C).dot(x)
             n, p = x.shape
             var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
             beta = y.T.dot(x).T / var
-            s = ((y ** 2).sum() - beta ** 2 * var) / (n - 1)
+            s = ((y ** 2).sum() - beta ** 2 * var) / (n - covars.shape[1] - 1)
             se = numpy.sqrt(s / var)
             stat = numpy.square(beta / se)
             logp = -numpy.log10(_sf(stat))
