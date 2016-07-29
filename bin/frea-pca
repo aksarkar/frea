@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+import argparse
+import pickle
+import sys
+
+from frea.simulation import *
+
+parser = argparse.ArgumentParser(description='Truncated SVD pass for simulation')
+parser.add_argument('events', nargs='+', help='Recombination events file (pickle file output by frea-sample-events)')
+parser.add_argument('legend_file', help='1KG legend (single chromosome)')
+parser.add_argument('haps_file', help='1KG reference haplotypes (single chromosome)')
+parser.add_argument('sample_file', help='1KG sample file')
+parser.add_argument('hotspot_file', help='deCODE recombination hotspots (single chromosome)')
+parser.add_argument('output_file', help='Output file name')
+parser.add_argument('-k', '--num-components', default=20, help='Number of principal components to compute (default: 20)')
+parser.add_argument('-n', '--n-per-block', default=None, help='Number of variants to downsample per LD block (default: do not downsample)')
+args = parser.parse_args()
+
+partial_svd = None
+if args.n_per_block is not None:
+    args.n_per_block = int(args.n_per_block)
+for filename in args.events:
+    with open(filename, 'rb') as f:
+        seed, y, events = pickle.load(f)
+        partial_svd = thin_svd(k=int(args.num_components),
+                               n_per_block=args.n_per_block,
+                               partial_svd=partial_svd, seed=seed,
+                               n=y.shape[0], events=events,
+                               hotspot_file=args.hotspot_file,
+                               legend_file=args.legend_file,
+                               haps_file=args.haps_file,
+                               sample_file=args.sample_file)
+with open(args.output_file, 'wb') as f:
+    pickle.dump(partial_svd, f)

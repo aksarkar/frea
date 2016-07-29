@@ -5,19 +5,21 @@ To generate realistic genotypes, we adapt the approach of Loh et al., Nat Genet
 Thousand Genomes phased reference haplotypes as the founders and sample
 recombinations at known recombination hotspots.
 
-The simulation proceeds in two passes over the reference data:
+The simulation proceeds in three passes over the reference data:
 
 1. Sample recombination events and genetic values
-2. Compute marginal association statistics
+2. Compute left singular vectors of the reconstructed genotypes
+3. Compute marginal association statistics
 
 The key design decision is to only store the sparse updates to the mosaic
 induced by recombination events, minimizing the storage requirement (which in
 turn improves the performance on NFS).
 
 To control the effect of population structure on marginal summary statistics,
-we restrict founder haplotypes to a single cohort of 1KG. However, it is
-possible (Brand, Lin Alg Appl 2006) to compute a rank-k truncated SVD in one
-additional pass through the data.
+we restrict founder haplotypes to a single cohort of 1KG. We additionally
+implement streaming truncated singular value decomposition using rank one
+updates through the reconstructed genotypes, optionally subsampling within LD
+blocks.
 
 Author: Abhishek Sarkar <aksarkar@mit.edu>
 
@@ -139,9 +141,47 @@ def reconstruction_pass(seed, n, events, hotspot_file, **kwargs):
             mosaic[hits] = ancestors
         yield mosaic, legend, haplotypes
 
+def thin_svd(k=20, n_per_block=None, partial_svd=None, **kwargs):
+    """Return the partial rank-k truncated SVD of the genotypes
 
+    We recover the top k principal components truncated SVD in one pass through
+    the data using rank one updates to a partial solution (Brand, Lin Alg Appl
+    2006). This method is required when the genotype matrix cannot fit in
+    memory and eigendecomposition of the kernel matrix is impossible. We
+    discard the right singular vectors (SNP loadings).
+
+    k - number of principal components to return
+    n_per_block - number of variants to subsample in SVD (default: don't subsample)
+    partial_svd - current factorization (U, S)
+    kwargs - arguments to reconstruction_pass
 
     """
+    if partial_svd is None:
+        U = numpy.matrix(numpy.zeros((kwargs['n'], k)))
+        S = numpy.matrix(numpy.zeros((k, k)))
+    else:
+        U, S = partial_svd
+    for mosaic, _, haplotypes in reconstruction_pass(**kwargs):
+        haplotypes = numpy.array(haplotypes, dtype='int8')
+        p, _ = haplotypes.shape
+        if n_per_block is None:
+            subsample = numpy.arange(p)
+        else:
+            subsample = R.choice(numpy.arange(p), size=n_per_block, replace=False)
+        for h in haplotypes[subsample]:
+            x = _reconstruct(mosaic, h)
+            # Eq. (6)
+            m = U.T * x
+            p = x - U * m
+            Ra = numpy.linalg.norm(p) + 1e-8
+            p /= Ra
+            # Eq. (9)
+            K = numpy.bmat([[S, m], [numpy.zeros(k).reshape(1, -1), numpy.matrix(Ra)]])
+            UK, SK, VK = numpy.linalg.svd(K, full_matrices=False)
+            # Eq. (5); n x (k + 1) * (k + 1) x k
+            U = numpy.bmat([U, p]) * UK[:, :k]
+            S = numpy.matrix(numpy.diag(SK[:k]))
+    return U, S
 
 _sf = scipy.stats.chi2(1).sf
 
