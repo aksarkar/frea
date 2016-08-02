@@ -33,6 +33,8 @@ import numpy.random as R
 
 from .formats import *
 
+numpy.seterr(all='warn')
+
 def blocks(hotspot_file, **kwargs):
     """Yield LD blocks defined by recombination hotspots
 
@@ -159,18 +161,15 @@ def thin_svd(k=20, n_per_block=None, partial_svd=None, debug=False, **kwargs):
     if partial_svd is None:
         U = numpy.matrix(numpy.zeros((kwargs['n'], k)))
         S = numpy.matrix(numpy.zeros((k, k)))
-        V = None
     else:
         U, S = partial_svd
     for mosaic, _, haplotypes in reconstruction_pass(**kwargs):
         haplotypes = numpy.array(haplotypes, dtype='int8')
         p, _ = haplotypes.shape
-        if n_per_block is None:
+        if n_per_block is None or n_per_block >= p:
             subsample = numpy.arange(p)
         else:
             subsample = R.choice(numpy.arange(p), size=n_per_block, replace=False)
-        if debug:
-            V = numpy.matrix(numpy.zeros((k, subsample.shape[0])))
         for h in haplotypes[subsample]:
             x = _reconstruct(mosaic, h)
             # Eq. (6)
@@ -183,18 +182,7 @@ def thin_svd(k=20, n_per_block=None, partial_svd=None, debug=False, **kwargs):
             UK, SK, VK = numpy.linalg.svd(K, full_matrices=False)
             # Eq. (5); n x (k + 1) * (k + 1) x k
             U = numpy.bmat([U, P]) * UK[:, :k]
-            if debug:
-                # k * (k + 1) * (k + 1) x p
-                V = VK[:k] * numpy.bmat([[V], [numpy.zeros((1, V.shape[1]))]])
             S = numpy.matrix(numpy.diag(SK[:k]))
-        if debug:
-            x = _reconstruct(mosaic, haplotypes[subsample])
-            Ub, Sb, Vb = numpy.linalg.svd(x)
-            approx1 = U.dot(S).dot(V)
-            approx2 = Ub[:,:20].dot(numpy.diag(Sb[:20])).dot(Vb[:20])
-            import pdb; pdb.set_trace()
-            assert numpy.all(numpy.isclose(approx1, approx2))
-            break
     return U, S
 
 _sf = scipy.stats.chi2(1).sf
@@ -214,7 +202,6 @@ def marginal_association(y, covars=None, eps=1e-8, chunk_size=1000, **kwargs):
     kwargs - arguments to reconstruction_pass
 
     """
-    numpy.seterr(all='warn')
     if covars is not None:
         # Regress out covariates
         covars -= covars.mean(axis=0)
