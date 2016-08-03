@@ -10,29 +10,27 @@ parser = argparse.ArgumentParser(description='Second pass marginal summary stati
 parser.add_argument('chromosome', help='Chromosome code (BED format)')
 parser.add_argument('pheno', help='Merged phenotype file (pickle file)')
 parser.add_argument('events', help='Recombination events file (pickle file output by frea-sample-events)')
-parser.add_argument('legend_file', help='1KG legend (single chromosome)')
-parser.add_argument('haps_file', help='1KG reference haplotypes (single chromosome)')
-parser.add_argument('sample_file', help='1KG sample file')
-parser.add_argument('hotspot_file', help='deCODE recombination hotspots (single chromosome)')
 parser.add_argument('--chunk', default=1000, help='Number of univariate model to fit in parallel')
 parser.add_argument('--covars', help='Covariate file')
 parser.add_argument('-d', '--debug', action="store_true", default=False, help='Output debug information instead of BED format')
 args = parser.parse_args()
 
-with open(args.pheno, 'rb') as f, open(args.events, 'rb') as g:
+with open(args.pheno, 'rb') as f:
     y = pickle.load(f)
-    seed, _, events = pickle.load(g)
+with open(args.events, 'rb') as f:
+    state = pickle.load(f)
 if args.covars is not None:
-    with open(args.covars) as f:
-        covars = numpy.array([[float(x) for x in line.split()[2:]] for line in f])
+    with open(args.covars, 'rb') as f:
+        covars, _ = pickle.load(f)
 else:
     covars = None
-stats = marginal_association(y=y, covars=covars, seed=int(seed), n=y.shape[0],
-                             events=events, hotspot_file=args.hotspot_file,
+stats = marginal_association(y=state['y'], covars=covars, seed=state['seed'],
+                             n=state['y'].shape[0], events=state['events'],
                              chunk_size=int(args.chunk),
-                             legend_file=args.legend_file,
-                             haps_file=args.haps_file,
-                             sample_file=args.sample_file)
+                             hotspot_file=state['hotspot_file'],
+                             legend_file=state['legend_file'],
+                             haps_file=state['haps_file'],
+                             sample_file=state['sample_file'])
 for name, pos, a0, a1, beta, se, logp in stats:
     if args.debug:
         print(args.chromosome, name, pos, a0, a1, beta, se, logp, sep='\t')

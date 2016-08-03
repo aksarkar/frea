@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import pickle
+import os.path
 import sys
 
 from frea.simulation import *
@@ -26,4 +27,12 @@ y, events = sample_events(seed=seed, n=int(args.n),
                           p_causal=float(args.p_causal),
                           n_per_window=int(args.n_per_window))
 with open(args.output_file, 'wb') as f:
-    pickle.dump((seed, y, events), f)
+    A = os.path.abspath
+    result = {'seed': seed,
+              'y': y,
+              'events': events,
+              'legend_file': A(args.legend_file),
+              'haps_file': A(args.haps_file),
+              'sample_file': A(args.sample_file),
+              'hotspot_file': A(args.hotspot_file)}
+    pickle.dump(result, f)
