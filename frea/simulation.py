@@ -204,9 +204,9 @@ def marginal_association(y, covars=None, eps=1e-8, chunk_size=1000, **kwargs):
     """
     if covars is not None:
         # Regress out covariates
-        covars -= covars.mean(axis=0)
+        covars -= numpy.array(covars).mean(axis=0)
         C = numpy.linalg.pinv(covars)
-        y -= covars.dot(C).dot(y)
+        y -= numpy.einsum('ij,jk,k->i', covars, C, y)
     for mosaic, legend, haplotypes in reconstruction_pass(**kwargs):
         for k, g in itertools.groupby(enumerate(zip(legend, haplotypes)), key=lambda x: int(x[0] // chunk_size)):
             legend, haplotypes = zip(*[x[1] for x in g])
@@ -216,7 +216,10 @@ def marginal_association(y, covars=None, eps=1e-8, chunk_size=1000, **kwargs):
             n, p = x.shape
             var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
             beta = y.T.dot(x).T / var
-            s = ((y ** 2).sum() - beta ** 2 * var) / (n - covars.shape[1] - 1)
+            df = n - 1
+            if covars is not None:
+                df -= covars.shape[1]
+            s = ((y ** 2).sum() - beta ** 2 * var) / df
             se = numpy.sqrt(s / var)
             stat = numpy.square(beta / se)
             logp = -numpy.log10(_sf(stat))
