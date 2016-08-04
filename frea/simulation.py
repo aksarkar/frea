@@ -212,7 +212,7 @@ def marginal_association(y, covars=None, eps=1e-8, chunk_size=1000, **kwargs):
             legend, haplotypes = zip(*[x[1] for x in g])
             x = _reconstruct(mosaic, haplotypes)
             if covars is not None:
-                x -= covars.dot(C).dot(x)
+                x -= covars.dot(C.dot(x))
             n, p = x.shape
             var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
             beta = y.T.dot(x).T / var
