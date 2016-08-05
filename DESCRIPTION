@@ -1,6 +1,6 @@
 Package: frea
 Title: Visualization tools for Functional Region Enrichment Analysis
-Version: 0.7.9000
+Version: 0.7.1
 Authors@R: "Abhishek Sarkar <aksarkar@mit.edu> [aut, cre]"
 Description: Tools for visualizing funtional genomic enrichments using ggplot2.
 Depends:
