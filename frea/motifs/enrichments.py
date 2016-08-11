@@ -4,10 +4,14 @@ Author: Abhishek Sarkar <aksarkar@mit.edu>
 
 """
 import collections
+import gzip
 import glob
 import itertools
 import operator
+import re
 import sys
+
+from ..algorithms import hashjoin
 
 Enrichment = collections.namedtuple('Enrichment', ['cluster', 'motif', 'odds_ratio', 'p'])
 Cofactor = collections.namedtuple('Cofactor', ['motif', 'score'])
@@ -62,3 +66,12 @@ def output_cofactors():
     def output_key(enrichment, cofactor):
         return enrichment.motif, cofactor.motif, cofactor.score
     output_long_form(output_key)
+
+def output_linked_genes(matches, links):
+    with gzip.open(links, 'rt') as f, gzip.open(matches, 'rt') as g:
+        links_entries = (line.split() for line in f)
+        matches_entries = (line.split() for line in g)
+        for m, l in hashjoin(matches_entries, links_entries,
+                             key1=operator.itemgetter(7),
+                             key2=operator.itemgetter(5)):
+            print(' '.join(m[:-1]), l[-2])
