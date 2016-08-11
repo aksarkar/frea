@@ -31,14 +31,19 @@ rrplot_highlights <- function() {
          'T2D' = c('E087', 'E109'))
 }
 
-rrplot <- function(X, total_cutoff, axis_labels, rank_cutoff) {
+rrplot <- function(X, total_cutoff, axis_labels, rank_cutoff, highlight=FALSE) {
     X <- subset(X, total <= total_cutoff)
     highlights <- rrplot_highlights()
-    X <- ddply(X, .(phenotype),
-               function(x) {
-                   x$alpha = with(x, ifelse(eid %in% unlist(highlights[[phenotype[1]]]), 1, 0.9))
-                   x
-               })
+    if (highlight) {
+        X <- ddply(X, .(phenotype),
+                   function(x) {
+                       x$alpha = with(x, ifelse(eid %in% unlist(highlights[[x$phenotype[1]]]), 1, 0.9))
+                       x
+                   })
+    }
+    else {
+        X$alpha = rep(1)
+    }
     (ggplot(X, aes(x=total, y=y, color=factor(eid))) +
      geom_line(aes(alpha=alpha), size=I(.35 / ggplot2:::.pt)) +
      geom_hline(yintercept=0, color='black', size=I(.5 / ggplot2:::.pt)) +
