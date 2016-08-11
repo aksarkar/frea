@@ -116,7 +116,7 @@ def _reconstruct(mosaic, haplotypes, center=True):
     center - True if returned genotypes should be centered
 
     """
-    n = mosaic.shape[0] / 2
+    n = mosaic.shape[0] // 2
     w = numpy.array(haplotypes, dtype='int8').T[mosaic]  # 2n x p
     x = w.reshape(n, -1, 2).sum(axis=2)
     if center:
