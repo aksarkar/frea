@@ -1,4 +1,5 @@
 requireNamespace('ggplot2')
+requireNamespace('dplyr')
 
 #' @include theme_nature.R
 
@@ -19,4 +20,16 @@ plot_rank_correlation <- function(correlation_file) {
     Cairo(file=sub('.txt$', '.pdf', correlation_file), type='pdf', height=50, width=89, unit='mm')
     print(p)
     dev.off()
+}
+
+qvalue_at_threshold <- function(marginal_file, ranks_file) {
+    marginal <- read.delim(gzfile(marginal_file), header=FALSE)
+    ranks <- read.table(ranks_file, sep=' ')
+    (marginal %>%
+     group_by(V1) %>%
+     mutate(p = 10 ** -V3) %>%
+     mutate(q = qvalue::qvalue(p)$qvalues) %>%
+     select(V1, q) %>%
+     arrange(q) %>%
+     slice(ranks[ranks$V1 == V1[1],]$V3))
 }

@@ -6,6 +6,7 @@ Description: Tools for visualizing funtional genomic enrichments using ggplot2.
 Depends:
     ggplot2,
     plyr,
+    dplyr,
     reshape2,
     scales,
     Cairo
