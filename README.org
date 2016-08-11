@@ -13,23 +13,21 @@
 #+LANGUAGE: en
 #+SELECT_TAGS: export
 
-This repository provides Python and R packages implementing the analyses
+This repository provides a Python package implementing part of the analyses
 presented in:
 
 - Sarkar, A. K., Ward, L. D., & Kellis, M. (2016). Functional enrichments of
   disease variants across thousands of independent loci in eight diseases.
   bioRxiv. http://dx.doi.org/10.1101/048066
 
-The computational pipeline described in the text (which utilizes these
-packages) is available from http://www.github.com/aksarkar/frea-pipeline
+The R package is available from http://www.github.com/aksarkar/frea-R. The
+computational pipeline described in the text (which utilizes these packages) is
+available from http://www.github.com/aksarkar/frea-pipeline
 
 * Installation
 
 #+BEGIN_SRC sh
-pip install git+git://github.com:aksarkar/frea.git#egg=Frea
-R <<EOF
-devtools::install_github('aksarkar/frea')
-EOF
+pip install git+git://github.com:aksarkar/frea.git#egg=frea
 #+END_SRC
 
   The Python package requires:
@@ -37,17 +35,6 @@ EOF
   - Python > 3.2
   - numpy
   - scipy
-
-  The R package requires:
-
-  - R > 3.1
-  - Cairo
-  - devtools
-  - ggplot2
-  - gtable
-  - plyr
-  - reshape2
-  - scales
 
 * Commentary
 
