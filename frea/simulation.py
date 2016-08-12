@@ -26,6 +26,7 @@ Author: Abhishek Sarkar <aksarkar@mit.edu>
 """
 import itertools
 import random
+import re
 import sys
 
 import numpy
@@ -278,6 +279,22 @@ def simulate_null(samples, probs, pve=0.5, **kwargs):
         dose -= dose.mean()
         y += dose * R.normal(size=y.shape[0])
     return y
+
+def output_oxstats_pheno():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('state', help='Output of frea-combine-pheno')
+    parser.add_argument('sample_file', nargs='+', help='Individual cohort sample files')
+    args = parser.parse_args()
+    with open(args.state, 'rb') as f:
+        y = pickle.load(f)
+    it = iter(y)
+    for filename in args.sample_file:
+        with open(filename) as f, open(re.sub('.sample', '.pheno', filename), 'w') as g:
+            data = (line.strip().split() for line in f)
+            print(' '.join(next(data)), 'pheno', file=g)
+            print(' '.join(next(data)), 'P', file=g)
+            for row in data:
+                print(' '.join(row[:4]), next(it), file=g)
 def combine_genetic_values(seed, values, pve=0.5):
     """Add Gaussian noise to generate a phenotype with target PVE
 

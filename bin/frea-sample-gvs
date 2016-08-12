@@ -22,7 +22,7 @@ with contextlib.ExitStack() as stack:
     data = [stack.enter_context(oxstats_genotypes(*args)) for args in kwise(args.files, 2)]
     samples = list(itertools.chain.from_iterable(s for _, _, s, _ in data))
     merged = merge_oxstats([d for _, _, _, d in data])
-    result = {'seed': args.seed,
+    result = {'seed': seed,
               'y': simulate_null(samples, merged)}
     with open(args.output_file, 'wb') as f:
         pickle.dump(result, f)

@@ -125,7 +125,7 @@ def _merge_oxstats(seq1, seq2):
 def merge_oxstats(iterables):
     """Yield merged genotypes from iterables
 
-    iterables -parsed OXSTATS data
+    iterables - parsed OXSTATS data
 
     """
     for row in functools.reduce(_merge_oxstats, iterables):
