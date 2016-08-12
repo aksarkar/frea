@@ -257,6 +257,27 @@ def output_phenotype(y, file=sys.stdout):
     for i, y_i in enumerate(y):
         print('0', 'GEN{}'.format(i), y_i, file=file)
 
+def sample_uniform(data, p_causal=0.5, window_size=1e6, n_per_window=1):
+    for _, g in itertools.groupby(data, key=lambda x: (x[0], int(int(x[2]) / window_size))):
+        if random.random() < p_causal:
+            w = list(g)
+            for snp in random.sample(w, n_per_window):
+                yield numpy.array(oxstats_gen_to_dosage(snp[5:]))
+
+def simulate_null(samples, probs, pve=0.5, **kwargs):
+    """Simulate phenotypes under the null (no enrichment)
+
+    Under the null, variants are sampled uniformly at random, independent of
+    annotation. We make a stronger assumption that causal variants are in
+    approximate linkage equilibrium, and sample causal variants uniformly
+    within 1MB windows.
+
+    """
+    y = numpy.zeros(len(samples))
+    for dose in sample_uniform(probs, **kwargs):
+        dose -= dose.mean()
+        y += dose * R.normal(size=y.shape[0])
+    return y
 def combine_genetic_values(seed, values, pve=0.5):
     """Add Gaussian noise to generate a phenotype with target PVE
 
