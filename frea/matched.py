@@ -43,6 +43,7 @@ def extract_maf(n):
     for row in data:
         if row[4] == 'SNP' and float(row[-1]) > 0.01:
             row[1] = int(row[1])
+            row[-1] = int(float(row[-1]) * 33)
             print(get_pouyak_name(chromosome(n), *row[:4]), row[-1])
 
 def build_table():
@@ -62,7 +63,7 @@ def build_table():
             props = list(g)
             if len(props) == len(iters):
                 table.append([k] + [x[1] for x in props])
-        for snp in sorted(table, key=key):
+        for snp in table:
             print(*snp)
 
 def build_bins(snps, table):
@@ -109,7 +110,7 @@ def permutation_test(overlap_bins, nonoverlap_bins, thresh, ntrials):
     - variance null count
     - exact p value
     - Anderon-Darling statistic for normality of the null distribution
-    - Anderson-Darlign .05 critical value
+    - Anderson-Darling .05 critical value
 
     """
     X = num_top_snps(I(overlap_bins.values()), thresh)
