@@ -2,7 +2,7 @@ import glob
 import setuptools
 
 setuptools.setup(name='frea',
-                 version='0.7.1',
+                 version='0.7.2',
                  description='Functional Region Enrichment Analysis',
                  long_description='Tools for interpreting GWAS using regulatory annotations',
                  author='Abhishek Sarkar',
