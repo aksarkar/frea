@@ -10,8 +10,8 @@ import sys
 from ..algorithms import hashjoin
 from ..formats import *
 
-def _chromosome(i):
-    with gzip.open('chr{}.txt.gz'.format(i), 'rt') as f, gzip.open('chr{}-pruned.gz'.format(i), 'rt') as g:
+def _chromosome(c):
+    with gzip.open('{}.txt.gz'.format(c), 'rt') as f, gzip.open('{}-pruned.gz'.format(c), 'rt') as g:
         original = parse(ucsc_bed_format, (line.split() for line in f))
         pruned = (line.split() for line in g)
         for o, p in hashjoin(original, pruned, key1=operator.itemgetter(3), key2=operator.itemgetter(1)):
@@ -20,6 +20,6 @@ def _chromosome(i):
             yield chr_, int(start), int(end), name, score
 
 if __name__ == '__main__':
-    for c in sorted([str(x) for x in range(1, 23)]):
-        for row in sorted(_chromosome(i)):
+    for c in sorted([chromosome(x) for x in range(1, 23)]):
+        for row in sorted(_chromosome(c)):
             print(*row, sep='\t')
