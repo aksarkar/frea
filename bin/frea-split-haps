@@ -1,6 +1,0 @@
-#!/usr/bin/env python3
-import sys
-
-from frea.impg import *;
-
-split_impg_haps(*sys.argv[1:4])

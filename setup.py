@@ -16,6 +16,9 @@ setuptools.setup(name='frea',
                                          'cardiogram=frea.summary.process:cardiogram',
                                          'iibdgc=frea.summary.process:iibdgc',
                                          'frea-build-table=frea.matched:build_table',
-                                         'frea-output-pheno=frea.simulation:output_oxstats_pheno']
+                                         'frea-output-pheno=frea.simulation:output_oxstats_pheno',
+                                         'frea-impg-maps=frea.impg:oxstats_legend_to_impg_map',
+                                         'frea-convert-haps=frea.impg:oxstats_haps_to_impg_haps',
+                                         'frea-split-haps=frea.impg:split_impg_haps']
                  }
                  )

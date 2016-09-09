@@ -1,3 +1,4 @@
+import argparse
 import math
 import operator
 
@@ -29,15 +30,18 @@ def oxstats_snptest_to_ucsc_bed(filename, chr_, min_info=0.8):
                   get_pouyak_name(chr_, rsid, pos, a0, a1),
                   logp, sep='\t')
 
-def ucsc_to_impg(ref_dir='.'):
+def ucsc_to_impg():
     """Convert lifted over z-scores to ImpG input format"""
+    parser = argparse.ArgumentParser(description='Convert UCSC BED to ImpG format')
+    parser.add_argument('--ref-dir', default='.', help='Directory containing 1KG reference')
+    args = parser.parse_args()
     data = (line.split('\t') for line in sys.stdin)
     parsed = parse(ucsc_bed_format, data)
     for k, g in itertools.groupby(parsed, key=operator.itemgetter(0)):
         with open('{}.txt'.format(k[3:]), 'w') as f:
             print('id', 'pos', 'ref', 'alt', 'z', file=f)
             output_ = functools.partial(output, output_fn=output_impg_zscores, score_fn=float, file=f)
-            lookup(g, output_fn=output_, ref_dir=ref_dir)
+            lookup(g, output_fn=output_, ref_dir=args.ref_dir)
 
 def _fix_names(fmt, output_fn, **kwargs):
     data = (line.strip().split('\t') for line in sys.stdin)
