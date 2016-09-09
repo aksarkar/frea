@@ -24,7 +24,9 @@ blocks.
 Author: Abhishek Sarkar <aksarkar@mit.edu>
 
 """
+import argparse
 import itertools
+import pickle
 import random
 import re
 import sys
@@ -295,6 +297,7 @@ def output_oxstats_pheno():
             print(' '.join(next(data)), 'P', file=g)
             for row in data:
                 print(' '.join(row[:4]), next(it), file=g)
+
 def combine_genetic_values(seed, values, pve=0.5):
     """Add Gaussian noise to generate a phenotype with target PVE
 
