@@ -190,6 +190,28 @@ def thin_svd(k=20, n_per_block=None, partial_svd=None, debug=False, **kwargs):
 
 _sf = scipy.stats.chi2(1).sf
 
+def _regress(x, y, covars, C):
+    """Fit linear regression models in parallel using matrix operations (Sikorska
+    et al., BMC Bioinformatics 2013).
+
+    Center genotypes for a local window in this function, but assume y is
+    already centered (pre-compute once).
+
+    """
+    if covars is not None:
+        x -= covars.dot(C.dot(x))
+    n, p = x.shape
+    var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
+    beta = y.T.dot(x).T / var
+    df = n - 1
+    if covars is not None:
+        df -= covars.shape[1]
+    s = ((y ** 2).sum() - beta ** 2 * var) / df
+    se = numpy.sqrt(s / var)
+    stat = numpy.square(beta / se)
+    logp = -numpy.log10(_sf(stat))
+    return beta, se, logp
+
 def marginal_association(y, covars=None, eps=1e-8, chunk_size=1000, **kwargs):
     """Yield marginal association statistics for a Gaussian phenotype
 
@@ -214,18 +236,7 @@ def marginal_association(y, covars=None, eps=1e-8, chunk_size=1000, **kwargs):
         for k, g in itertools.groupby(enumerate(zip(legend, haplotypes)), key=lambda x: int(x[0] // chunk_size)):
             legend, haplotypes = zip(*[x[1] for x in g])
             x = _reconstruct(mosaic, haplotypes)
-            if covars is not None:
-                x -= covars.dot(C.dot(x))
-            n, p = x.shape
-            var = numpy.diag(x.T.dot(x)) + 1e-8  # Needed for monomorphic SNPs
-            beta = y.T.dot(x).T / var
-            df = n - 1
-            if covars is not None:
-                df -= covars.shape[1]
-            s = ((y ** 2).sum() - beta ** 2 * var) / df
-            se = numpy.sqrt(s / var)
-            stat = numpy.square(beta / se)
-            logp = -numpy.log10(_sf(stat))
+            beta, se, logp = _regress(x, y, covars, C)
             for l, b, s, p in zip(legend, beta, se, logp):
                 name, pos, a0, a1, *_ = l
                 yield name, int(pos), a0, a1, b, s, p
@@ -254,6 +265,44 @@ def output_genotypes(chromosome, file=sys.stdout, **kwargs):
             print(chromosome, pos, name, a0, a1, '.', '.', '.', 'GT',
                   delim.join(coding[x_ij] for x_ij in x_j), sep=delim,
                   file=file)
+
+def output_summary():
+    parser = argparse.ArgumentParser('frea-output-summary', description='Compute summary statistics')
+    parser.add_argument('chromosome', type=int, choices=range(1, 23), help='Chromosome')
+    parser.add_argument('files', nargs='+', help='OXSTATS datasets (expected in sample, gen pairs)')
+    parser.add_argument('-w', '--window-size', type=float, help='Chunk size (number of SNPs)', default=100)
+    args = parser.parse_args()
+    with contextlib.ExitStack() as stack:
+        data = [stack.enter_context(oxstats_genotypes(*args)) for args in kwise(args.files, 2)]
+        header = [(h1, h2) for h1, h2, _, _ in data]
+        if not all(h == header[0] for h in header):
+            raise argparse.ArgumentTypeError('All samples files must have same header')
+        samples = list(itertools.chain.from_iterable(s for _, _, s, _ in data))
+        pheno_index = [[i for i, (_, h2) in enumerate(zip(*h)) if h2 == 'P'] for h in header]
+        for i, p in enumerate(pheno_index):
+            if len(p) != 1:
+                raise argparse.ArgumentTypeError('Multiple phenotyeps not supported (found {} in file {})'.format(len(p), args.files[2 * i]))
+        y = numpy.array([s[pheno_index[0][0]] for s in samples]).astype('float')
+        covars = None
+        C = None
+        covar_index = [i for i, (_, h2) in enumerate(zip(*header[0])) if h2 == 'C']
+        if covar_index:
+            covars = numpy.array(s[j] for s in samples for j in covar_index)
+            covars -= covars.mean(axis=0)
+            C = numpy.linalg.pinv(covars)
+            y -= numpy.einsum('ij,jk,k->i', covars, C, y)
+        merged = merge_oxstats([d for _, _, _, d in data])
+        for _, g in itertools.groupby(enumerate(merged), key=lambda x: (x[0] // args.window_size)):
+            chunk = list(x for i, x in g)
+            x = numpy.array([x[5:] for x in chunk]).astype('float').reshape(-1, y.shape[0], 3)
+            x *= numpy.arange(3)
+            d = x.sum(axis=2).T
+            beta, se, logp = _regress(d, y, covars, C)
+            for c, b, s, p in zip(chunk, beta, se, logp):
+                pos = c[2]
+                a0 = c[3]
+                print(chromosome(args.chromosome), pos, pos + len(a0),
+                      get_pouyak_name(chromosome(args.chromosome), *c[1:5]), p, sep='\t')
 
 def output_phenotype(y, file=sys.stdout):
     """Output phenotype in plink format"""
@@ -285,13 +334,16 @@ def simulate_null(samples, probs, pve=0.5, **kwargs):
 def output_oxstats_pheno():
     parser = argparse.ArgumentParser()
     parser.add_argument('state', help='Output of frea-combine-pheno')
+    parser.add_argument('prefix', help='Output prefix')
     parser.add_argument('sample_file', nargs='+', help='Individual cohort sample files')
     args = parser.parse_args()
     with open(args.state, 'rb') as f:
         y = pickle.load(f)
     it = iter(y)
     for filename in args.sample_file:
-        with open(filename) as f, open(re.sub('.sample', '.pheno', filename), 'w') as g:
+        target = re.sub('.sample', '.pheno', filename)
+        target = re.sub('-clean', '-{}'.format(args.prefix), target)
+        with open(filename) as f, open(target, 'w') as g:
             data = (line.strip().split() for line in f)
             print(' '.join(next(data)), 'pheno', file=g)
             print(' '.join(next(data)), 'P', file=g)
