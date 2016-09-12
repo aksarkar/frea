@@ -316,7 +316,7 @@ def sample_uniform(data, p_causal=0.5, window_size=1e6, n_per_window=1):
             for snp in random.sample(w, n_per_window):
                 yield numpy.array(oxstats_gen_to_dosage(snp[5:]))
 
-def simulate_null(samples, probs, pve=0.5, **kwargs):
+def simulate_null(samples, probs, seed, **kwargs):
     """Simulate phenotypes under the null (no enrichment)
 
     Under the null, variants are sampled uniformly at random, independent of
