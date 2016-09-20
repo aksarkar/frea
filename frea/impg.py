@@ -10,7 +10,7 @@ import operator
 import sys
 
 from .algorithms import hashjoin
-from .formats import parse, legend_format
+from .formats import oxstats_haplotypes
 
 def oxstats_legend_to_impg_map():
     """Convert OXSTATS legend file to ImpG map file
@@ -45,13 +45,11 @@ def oxstats_haps_to_impg_haps():
     parser = argparse.ArgumentParser(description='Convert OXSTATS haplotypes to ImpG haps file')
     parser.add_argument('haps_file', help='OXSTATS haplotypes file')
     parser.add_argument('legend_file', help='OXSTATS legend file')
+    parser.add_argument('sample_file', help='OXSTATS sample file')
     args = parser.parse_args()
-    with gzip.open(args.haps_file, 'rt') as f, gzip.open(args.legend_file, 'rt') as g:
-        haps = (line.split() for line in f)
-        info = (line.split() for line in g)
-        next(info)
-        for s, h in zip(info, haps):
-            print(s[0], ''.join(chr(ord(x) + 1) for x in h))
+    with oxstats_haplotypes(args.sample_file, args.legend_file, args.haps_file, group='EUR') as data:
+        for s, h in data:
+            print(s[0], ''.join(str(1 + x) for x in h))
 
 def split_impg_haps():
     """Split ImpG formatted haplotypes for one imputation window

@@ -131,8 +131,8 @@ def merge_oxstats(iterables):
     for row in functools.reduce(_merge_oxstats, iterables):
         yield row
 
-def parse_oxstats_haps(samples, legend_iterable, haps_iterable, group='EUR',
-                       population='GBR', snps_only=True, min_maf=0.01):
+def parse_oxstats_haps(samples, legend_iterable, haps_iterable, group=None,
+                       population=None, snps_only=True, min_maf=0.01):
     """Return OXSTATS haplotypes which meet the specific criteria
 
     samples - list of (sample, population, group, sex) records
@@ -144,13 +144,17 @@ def parse_oxstats_haps(samples, legend_iterable, haps_iterable, group='EUR',
     min_maf - only keep variants with MAF above threshold
 
     """
-    keep = [x[1] == population and x[2] == group for x in samples]
+    keep = [(population is None or x[1] == population) and
+            (group is None or x[2] == group) for x in samples]
     legend_entries = (line.split() for line in legend_iterable)
     header = next(legend_entries)
-    maf_col = header.index('{}.maf'.format(group.lower()))
+    if group is not None:
+        maf_col = header.index('{}.maf'.format(group.lower()))
+    else:
+        maf_col = None
     haps_entries = (line.split() for line in haps_iterable)
     for l, h in zip(legend_entries, haps_entries):
-        if (not snps_only or l[4] == 'SNP') and float(l[maf_col]) > min_maf:
+        if (not snps_only or l[4] == 'SNP') and (maf_col is None or float(l[maf_col]) > min_maf):
             filtered_haps = [pair for pair, keep_ in zip(kwise(h, 2), keep) if keep_]
             ignore_homologs = itertools.chain.from_iterable(filtered_haps)
             parsed_haps = [int(x) for x in ignore_homologs]
@@ -171,7 +175,7 @@ def oxstats_haplotypes(sample_file, legend_file, haps_file, **kwargs):
         next(f)
         samples = [line.split() for line in f]
     with gzip.open(legend_file, 'rt') as f, gzip.open(haps_file, 'rt') as g:
-        yield parse_oxstats_haps(samples, f, g)
+        yield parse_oxstats_haps(samples, f, g, **kwargs)
 
 @contextlib.contextmanager
 def decode_recombination_hotspots(hotspot_file):
