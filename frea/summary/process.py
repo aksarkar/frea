@@ -1,4 +1,6 @@
 import argparse
+import collections
+import logging
 import math
 import operator
 
@@ -6,6 +8,8 @@ import scipy.stats
 
 from .lookup import *
 from ..formats import *
+
+logger = logging.getLogger(__name__)
 
 def oxstats_snptest_to_ucsc_bed(filename, chr_, min_info=0.8):
     """Convert SNPTEST output to BED format
@@ -99,3 +103,44 @@ def scz(filename, ref_dir):
     def key(row):
         return row[0], int(row[4]), float(row[8])
     lookup(sorted(summary_stats(filename, key), key=operator.itemgetter(0, 1)), ref_dir=ref_dir)
+
+def _output_scz(bed, ref):
+    chr_, _, a0, a1, score = bed
+    name, pos, b0, b1, _ = ref
+    if len(a0) > 1 or len(a1) > 1:
+        a0, a1 = get_plink_alleles(a0, a1)
+    if not is_alignable(a0, a1, b0, b1):
+        logger.warn('Ignoring {}'.format((bed, ref)))
+        return
+    elif (a0, a1) == (b1, b0):
+        logger.debug('Flipping {}'.format(bed))
+        score *= -1
+    print(output_impg_zscores(chr_, str(score), name, pos, a0, a1))
+
+def scz_to_impg():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('summary_file')
+    parser.add_argument('ref_dir')
+    parser.add_argument('-H', '--hapmap', help='BED file containing Hapmap 3 variants')
+    args = parser.parse_args()
+    def key(row):
+        return row[0], int(row[4]), row[2], row[3], zscore(float(row[8]), float(row[6]))
+    hapmap = collections.defaultdict(set)
+    summary = summary_stats(args.summary_file, key)
+    if args.hapmap is not None:
+        logger.debug('Building hapmap lookup table')
+        with gzip.open(args.hapmap, 'rt') as f:
+            data = (line.split() for line in f)
+            parsed = parse(ucsc_bed_format, data)
+            for row in parsed:
+                hapmap[row[0]].add(row[2])
+        logger.debug('Finished building hapmap lookup table')
+        keep = [row for row in summary if row[1] in hapmap[row[0]]]
+    else:
+        keep = summary
+    logger.debug('Sorting summary stats')
+    for k, g in itertools.groupby(keep, key=operator.itemgetter(0)):
+        logger.debug('Processing chromosome {}'.format(k))
+        with open('{}.txt'.format(k)[3:], 'w') as f:
+            with contextlib.redirect_stdout(f):
+                lookup(g, _output_scz, ref_dir=args.ref_dir)

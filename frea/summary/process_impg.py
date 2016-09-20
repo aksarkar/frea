@@ -46,11 +46,24 @@ def impg_chromosome(chromosome, min_r2pred=0.6):
                 yield row
 
 def process_impg(chromosome, ref_dir='.'):
-    """Process ImpG output"""
+    """Process per-window ImpG output"""
     sf = scipy.stats.chi2(1).sf
     k = 'chr{}'.format(chromosome)
     output_ = functools.partial(output, key=lambda x: (k, sf(math.pow(x[4], 2))))
     lookup(impg_chromosome(chromosome), output_fn=output_,
+           input_sort_key=lambda x: k, input_join_key=operator.itemgetter(1, 2, 3),
+           ref_join_key=operator.itemgetter(1, 2, 3), ref_dir=ref_dir)
+
+def process_impz(chromosome, ref_dir='.'):
+    """Process per-chromosome ImpG output"""
+    sf = scipy.stats.chi2(1).sf
+    k = 'chr{}'.format(chromosome)
+    output_ = functools.partial(output, key=lambda x: (k, sf(math.pow(x[4], 2))))
+    data = (line.split() for line in sys.stdin)
+    next(data)
+    parsed = parse(impg_format, data)
+    filtered = (row for row in parsed if row[5] >= 0.6)
+    lookup(filtered, output_fn=output_,
            input_sort_key=lambda x: k, input_join_key=operator.itemgetter(1, 2, 3),
            ref_join_key=operator.itemgetter(1, 2, 3), ref_dir=ref_dir)
 

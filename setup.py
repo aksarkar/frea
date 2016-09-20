@@ -22,6 +22,7 @@ setuptools.setup(name='frea',
                          'frea-impg-maps=frea.impg:oxstats_legend_to_impg_map',
                          'frea-convert-haps=frea.impg:oxstats_haps_to_impg_haps',
                          'frea-split-haps=frea.impg:split_impg_haps',
+                         'frea-impg-holdout=frea.summary.process:scz_to_impg'
                      ]
                  }
                  )
