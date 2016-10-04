@@ -13,8 +13,15 @@ set -o pipefail
 MASTER=${1?"missing enrichments"}
 shift
 PWMS=${1?"missing motifs"}
-VARS=$(mktemp)
-REGIONS=$(mktemp)
-awk -v v=$VARS -v r=$REGIONS '{gsub(/\|/, "\t", $4); print $4 "\talt" >v; print ".", $6, $7, $8 >r}'
-extract-mfa -k 1 $(GetOrgVars.sh hg19 ALIGNFILE) <$REGIONS | apply-var -v $VARS | motif-match -n -1 -m <(zcat $PWMS) -V 1 | awk -v m=$MASTER '/alt/ && ! /shuffled/ {sub(/_8mer$/, "", $1); print m, $0}'
+shift
+HG19=${1?"missing hg19 sequence"}
+VARS=var.txt
+REGIONS=regions.txt
+awk -v OFS='\t' -v v=$VARS -v r=$REGIONS '{gsub(/\|/, OFS, $4); print $4, "alt" >v; print $6, $7, $8 >r}'
+bedtools getfasta -fi $HG19 -bed $REGIONS -fo stdout | \
+    awk '/^>/ {if (NR > 1) {print ""} split($0, a, /[>:-]/); print ".", a[2], a[3] + 1, a[4]; print ">Human"; next} {print} END {print ""}' | \
+    tee trace |
+    apply-var -v $VARS | \
+    motif-match -n -1 -m <(zcat $PWMS) -V 1 | \
+    awk -v m=$MASTER '/alt/ && ! /shuffled/ {sub(/_8mer$/, "", $1); print m, $0}'
 rm -f $VARS $REGIONS
